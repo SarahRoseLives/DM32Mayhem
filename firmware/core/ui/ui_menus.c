@@ -3989,9 +3989,9 @@ static const ui_scr_def_t trim_screen = {
 #endif
 
 // ======================= About (Settings > Advanced) =======================
-// A text page, every word shown (nothing shortened), no status strip while idle: the release and the commit, RadioFoundry's license, the
-// authors, the third-party code and fonts in this image and the codec. From AUTHORS and platform/<platform>/THIRD_PARTY,
-// through the header make generates (tools/gen_about.py)
+// A text page, every word shown (nothing shortened), no status strip while idle: the release and the commit, the
+// license, the authors and the third-party code and fonts in this image. From AUTHORS and
+// platform/<platform>/THIRD_PARTY, through the header make generates (tools/gen_about.py)
 
 static const char *const about_authors[] = RFOUNDRY_ABOUT_AUTHORS;
 static const char *const about_third[][2] = RFOUNDRY_ABOUT_THIRD_PARTY;
@@ -4007,7 +4007,7 @@ static const char *about_text(void)
 	// wider than the display and the release wrapped without its label. A release: its name, then the commit it was
 	// built from; any other build: the commit alone
 	sb_str(&b, TR("Firmware: "));
-	sb_str(&b, "RadioFoundry\n");
+	sb_str(&b, "DM32Mayhem\n");
 	if (RFOUNDRY_RELEASE[0] != '\0') {
 		sb_str(&b, TR("Release: "));
 		sb_str(&b, RFOUNDRY_RELEASE);
@@ -4046,8 +4046,6 @@ static const char *about_text(void)
 	sb_chr(&b, '\n');
 	sb_str(&b, TR("JetBrains Mono font: OFL-1.1"));
 #endif
-	sb_chr(&b, '\n');
-	sb_str(&b, TR("AMBE+2 codec: DVSI (stock)"));	// from the radio's own firmware, not part of RadioFoundry
 	return t;
 }
 
@@ -5757,6 +5755,281 @@ static const ui_scr_def_t cpf_screen = {
 };
 
 #if CONFIG_BBS
+// ======================= The app menu (Home) =======================
+// A portapak-style grid of apps, two columns by three rows: the icon over its name, the focused tile filled cyan. It is
+// Home in this build. The top level groups the apps by direction (RX, TX, TRX) and opens About, Config and Diagnostics.
+// RX, TX and TRX are submenus of the same grid; their apps are still to come, so they show empty slots for now.
+enum { MENU_TOP, MENU_RX, MENU_TX, MENU_TRX, MENU_IDS };
+#define MT_COLS		2
+#define MT_ROWS		3
+#define MT_SLOTS	(MT_COLS * MT_ROWS)
+
+enum { MT_RX, MT_TX, MT_TRX, MT_ABOUT, MT_CONFIG, MT_DIAG, MT_TOP_COUNT };
+static const char *const menu_top_labels[MT_TOP_COUNT] = { "RX", "TX", "TRX", "ABOUT", "CONFIG", "DIAG" };
+
+// --- pixel icons, laid out on a 16x16 grid and drawn in s x s blocks so they scale with the tile ---
+static void ipx(int ox, int oy, int s, int x, int y, color_t c)
+{
+	if (x < 0 || x > 15 || y < 0 || y > 15)
+		return;
+	gfx_fill(ox + x * s, oy + y * s, s, s, c);
+}
+
+static void iline(int ox, int oy, int s, int x0, int y0, int x1, int y1, color_t c)
+{
+	int dx = x1 > x0 ? x1 - x0 : x0 - x1, dy = y1 > y0 ? y0 - y1 : y1 - y0, err = dx + dy;
+	int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+	for (;;) {
+		ipx(ox, oy, s, x0, y0, c);
+		if (x0 == x1 && y0 == y1)
+			break;
+		int e2 = 2 * err;
+		if (e2 >= dy) {
+			err += dy;
+			x0 += sx;
+		}
+		if (e2 <= dx) {
+			err += dx;
+			y0 += sy;
+		}
+	}
+}
+
+static int isqrt_small(int v)
+{
+	int r = 0;
+	while ((r + 1) * (r + 1) <= v)
+		r++;
+	return r;
+}
+
+// An ellipse outline, one point a row either side of the center (solid enough at these sizes)
+static void iellipse(int ox, int oy, int s, int cx, int cy, int rx, int ry, color_t c)
+{
+	for (int y = -ry; y <= ry; y++) {
+		int xx = rx * isqrt_small(ry * ry - y * y) / ry;
+		ipx(ox, oy, s, cx + xx, cy + y, c);
+		ipx(ox, oy, s, cx - xx, cy + y, c);
+	}
+}
+
+static void icon_rx(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 3, 14, 13, 14, c);		// the receiver's baseline
+	iline(ox, oy, s, 8, 3, 8, 10, c);		// an arrow down into it
+	iline(ox, oy, s, 4, 7, 8, 11, c);
+	iline(ox, oy, s, 12, 7, 8, 11, c);
+}
+
+static void icon_tx(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 3, 14, 13, 14, c);		// the transmitter's baseline
+	iline(ox, oy, s, 8, 5, 8, 12, c);		// an arrow up out of it
+	iline(ox, oy, s, 4, 8, 8, 4, c);
+	iline(ox, oy, s, 12, 8, 8, 4, c);
+}
+
+static void icon_trx(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 8, 14, 8, c);		// both ways at once
+	iline(ox, oy, s, 2, 8, 5, 5, c);
+	iline(ox, oy, s, 2, 8, 5, 11, c);
+	iline(ox, oy, s, 14, 8, 11, 5, c);
+	iline(ox, oy, s, 14, 8, 11, 11, c);
+}
+
+static void icon_info(int ox, int oy, int s, color_t c)
+{
+	iellipse(ox, oy, s, 8, 8, 7, 7, c);		// a circled i
+	ipx(ox, oy, s, 8, 4, c);
+	iline(ox, oy, s, 8, 6, 8, 12, c);
+}
+
+static void icon_sliders(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 4, 14, 4, c);		// three settings sliders
+	iline(ox, oy, s, 2, 8, 14, 8, c);
+	iline(ox, oy, s, 2, 12, 14, 12, c);
+	for (int y = 3; y <= 5; y++)
+		ipx(ox, oy, s, 5, y, c);
+	for (int y = 7; y <= 9; y++)
+		ipx(ox, oy, s, 10, y, c);
+	for (int y = 11; y <= 13; y++)
+		ipx(ox, oy, s, 7, y, c);
+}
+
+static void icon_pulse(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 8, 5, 8, c);		// a trace for diagnostics
+	iline(ox, oy, s, 5, 8, 7, 3, c);
+	iline(ox, oy, s, 7, 3, 9, 13, c);
+	iline(ox, oy, s, 9, 13, 11, 8, c);
+	iline(ox, oy, s, 11, 8, 14, 8, c);
+}
+
+static uint16_t menu_count(uint16_t menu)
+{
+	return menu == MENU_TOP ? MT_TOP_COUNT : 0;
+}
+
+static const char *menu_title(uint16_t menu)
+{
+	switch (menu) {
+	case MENU_RX: return "RX";
+	case MENU_TX: return "TX";
+	case MENU_TRX: return "TRX";
+	default: return NULL;
+	}
+}
+
+static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t c)
+{
+	if (menu != MENU_TOP)
+		return;
+	switch (i) {
+	case MT_RX: icon_rx(ox, oy, s, c); break;
+	case MT_TX: icon_tx(ox, oy, s, c); break;
+	case MT_TRX: icon_trx(ox, oy, s, c); break;
+	case MT_ABOUT: icon_info(ox, oy, s, c); break;
+	case MT_CONFIG: icon_sliders(ox, oy, s, c); break;
+	case MT_DIAG: icon_pulse(ox, oy, s, c); break;
+	default: break;
+	}
+}
+
+static void menu_activate(uint16_t menu, uint16_t i)
+{
+	if (menu != MENU_TOP)
+		return;
+	switch (i) {
+	case MT_RX: ui_push(SCR_MENU, MENU_RX); break;
+	case MT_TX: ui_push(SCR_MENU, MENU_TX); break;
+	case MT_TRX: ui_push(SCR_MENU, MENU_TRX); break;
+	case MT_ABOUT: ui_push(SCR_ABOUT, 0); break;
+	case MT_CONFIG: ui_push(SCR_SETTINGS, 0); break;
+	case MT_DIAG: ui_push(SCR_DIAG, 0); break;
+	default: break;
+	}
+}
+
+static void menu_draw(void)
+{
+	const ui_layout_t *L = &ui_layout;
+	ui_frame_t *f = ui_frame();
+	const font_t *lf = L->medium;
+	uint16_t menu = f->arg;
+	uint16_t count = menu_count(menu);
+	int w = gfx_width();
+	gfx_clear(ui_col.bg);
+	int y0 = ui_draw_top(ui_view(), &ui_st, NULL, menu_title(menu));
+	int y1 = L->hint_y;
+	if (count != 0 && f->focus >= count)
+		f->focus = 0;
+	int margin = 6;
+	int cell_w = (w - 2 * margin) / MT_COLS;
+	int cell_h = (y1 - y0 - 2 * margin) / MT_ROWS;
+	if (cell_w < 2 || cell_h < 2) {
+		ui_draw_bottom(&ui_st, NULL);
+		return;
+	}
+	for (int i = 0; i < MT_SLOTS; i++) {
+		int cx = margin + (i % MT_COLS) * cell_w, cy = y0 + margin + (i / MT_COLS) * cell_h;
+		bool have = i < count, sel = have && i == f->focus;
+		if (!have) {		// an empty slot: the grid is ready for the apps still to come
+			gfx_rect(cx + 4, cy + 4, cell_w - 8, cell_h - 8, ui_col.line);
+			continue;
+		}
+		// The portapak look: a cyan tile with dark ink, whatever the theme's accent
+		static const color_t SEL_BG = RGB565(0, 190, 210), SEL_FG = RGB565(10, 22, 30);
+		if (sel) {
+			if (gfx_bpp() == 1)
+				gfx_rect(cx + 2, cy + 2, cell_w - 4, cell_h - 4, ui_col.fg);
+			else
+				gfx_round_fill(cx + 2, cy + 2, cell_w - 4, cell_h - 4, SEL_BG);
+		}
+		color_t fg = sel ? (gfx_bpp() == 1 ? ui_col.fg : SEL_FG) : ui_col.fg;
+		int lab_h = lf->h;
+		int s = (cell_h - lab_h - 8) / 16;
+		int max_s = (cell_w - 8) / 16;
+		if (s > max_s)
+			s = max_s;
+		if (s < 1)
+			s = 1;
+		int ip = 16 * s;
+		int iy = cy + (cell_h - (ip + 4 + lab_h)) / 2;
+		int ix = cx + (cell_w - ip) / 2;
+		menu_icon(menu, (uint16_t)i, ix, iy, s, fg);
+		gfx_text(lf, cx + (cell_w - gfx_text_width(lf, menu_top_labels[i])) / 2, iy + ip + 4,
+			 menu_top_labels[i], fg);
+	}
+	ui_draw_banner(&ui_st);
+	if (ui_st.toast != NULL)
+		ui_draw_hint(ui_st.toast, true);
+	else
+		ui_draw_hint(count != 0 ? TR("OK pick  Back") : TR("Back"), false);
+}
+
+static bool menu_key(const input_event_t *ev)
+{
+	ui_frame_t *f = ui_frame();
+	uint16_t menu = f->arg;
+	uint16_t count = menu_count(menu);
+	bool press = ev->gesture == GESTURE_PRESS;
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (press && ev->action == ACT_BACK)
+		return ui_depth() == 0;		// a submenu pops; the top stays put
+	if (count == 0)
+		return true;			// an empty submenu: no apps to move through
+	if (f->focus >= count)
+		f->focus = 0;
+	if (ev->action == ACT_ENC_STEP) {
+		int dir = ev->value > 0 ? 1 : ev->value < 0 ? -1 : 0;
+		if (dir != 0)
+			f->focus = (uint16_t)((f->focus + count + dir) % count);
+		return true;
+	}
+	if (ev->gesture == GESTURE_PRESS || ev->gesture == GESTURE_REPEAT || ev->gesture == GESTURE_LONG) {
+		switch (ev->action) {
+		case ACT_NAV_UP:
+			if (f->focus >= MT_COLS)
+				f->focus -= MT_COLS;
+			return true;
+		case ACT_NAV_DOWN:
+			if (f->focus + MT_COLS < count)
+				f->focus += MT_COLS;
+			return true;
+		case ACT_NAV_LEFT:
+			if (f->focus % MT_COLS != 0)
+				f->focus--;
+			return true;
+		case ACT_NAV_RIGHT:
+			if (f->focus % MT_COLS != MT_COLS - 1 && f->focus + 1 < count)
+				f->focus++;
+			return true;
+		default:
+			break;
+		}
+	}
+	if (press && d >= 1 && d <= count) {
+		f->focus = (uint16_t)(d - 1);
+		return true;
+	}
+	if (press && ev->action == ACT_SELECT) {
+		menu_activate(menu, f->focus);
+		return true;
+	}
+	return false;
+}
+
+static void menu_enter(void)
+{
+	ui_frame()->focus = 0;
+}
+
+static const ui_scr_def_t menu_screen = {
+	.name = "menu", .flags = SF_FIELD, .key = menu_key, .draw = menu_draw, .enter = menu_enter,
+};
+
 // ======================= The packet BBS (docs/spec/bbs.md) =======================
 // The OK menu is the BBS panel: start/stop, the operating channel, the identity and the mailbox. While it runs the
 // radio is locked to its frequency (ui_app.c), so this panel is the one place to stop it.
@@ -6213,6 +6486,7 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_DMR_ID] = &dmr_id_screen,
 	[SCR_CP_FOREIGN] = &cpf_screen,
 #if CONFIG_BBS
+	[SCR_MENU] = &menu_screen,
 	[SCR_BBS_MSGS] = &bbs_msgs_screen, [SCR_BBS_MSG] = &bbs_msg_screen,
 #endif
 #if CONFIG_REF_TRIM

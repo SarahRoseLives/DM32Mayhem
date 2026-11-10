@@ -1798,7 +1798,10 @@ void ui_app_init(void)
 	ev_head = ev_tail = 0;
 	sp = 0;
 #if CONFIG_BBS
-	stack[0].scr = SCR_HUB;		// the BBS panel is the whole UI
+	stack[0].scr = SCR_MENU;		// the app grid is Home
+	stack[0].arg = 0;			// MENU_TOP (ui_menus.c)
+	stack[0].focus = 0;
+	stack[0].top = 0;
 #else
 	stack[0].scr = SCR_HOME;
 #endif
@@ -1962,7 +1965,7 @@ void ui_app_key(const input_event_t *ev)
 			return;
 		}
 		uint8_t scr = stack[sp].scr;
-		bool inside = scr == SCR_HUB || scr == SCR_BBS_MSGS || scr == SCR_BBS_MSG || scr == SCR_TEXT;
+		bool inside = scr == SCR_MENU || scr == SCR_HUB || scr == SCR_BBS_MSGS || scr == SCR_BBS_MSG || scr == SCR_TEXT;
 		if (!inside) {
 			ui_go_home();
 			if (ev->gesture == GESTURE_PRESS && ev->action != ACT_ENC_STEP) {

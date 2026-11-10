@@ -30,7 +30,7 @@
 #if CONFIG_OOK_TX
 #include "ook/ook.h"
 #endif
-#if CONFIG_OOK_TX || CONFIG_MDC_TX
+#if CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_RTTY_TX || CONFIG_APRS_TX
 #include "aprs/aprs.h"
 #endif
 #if CONFIG_MDC_TX
@@ -38,6 +38,13 @@
 #endif
 #if CONFIG_P25CC_TX
 #include "p25cc/p25cc.h"
+#endif
+#if CONFIG_RTTY_TX
+#include "rtty/rtty.h"
+#endif
+#if CONFIG_APRS_TX
+#include "aprs/aprs_fmt.h"
+#include "ui_svc_aprs.h"
 #endif
 
 #ifndef RFOUNDRY_GIT
@@ -2561,11 +2568,13 @@ static const ui_scr_def_t discard_screen = {
 // keypad Up / Down step the last character (down past the space deletes it), OK adds one and long OK keeps
 
 #define TEXT_MULTI_MS	1000u
+#define TEXT_BUF_MAX	128	// room for an APRS message or an RTTY line, not just a name
 
 static char *text_target;
 static void (*text_done)(void);		// called once the text is kept (NULL: none)
 static uint8_t text_max;
-static char text_buf[CODEPLUG_NAME_LEN + 1];
+static char text_buf[TEXT_BUF_MAX + 1];
+static char text_prefix_buf[16] = "Name";	// the screen's title, set by ui_text_open_title
 static uint8_t text_len;
 static int8_t text_key = -1;		// the key that typed the last character, -1 = none to cycle
 static uint8_t text_idx;
@@ -2573,12 +2582,19 @@ static uint32_t text_ms;
 enum { TEXT_UPPER, TEXT_DIGITS, TEXT_LOWER, TEXT_MODES };	// the order # cycles through
 static uint8_t text_mode;
 
-static void ui_text_open(char *target, uint8_t max)
+// The keypad text editor on target (room for max + 1 characters), titled prefix ("Name", "Status", "Message", ...)
+static void ui_text_open_title(char *target, uint8_t max, const char *prefix)
 {
 	text_target = target;
 	text_done = NULL;
-	text_max = max < CODEPLUG_NAME_LEN ? max : CODEPLUG_NAME_LEN;
+	text_max = max < TEXT_BUF_MAX ? max : TEXT_BUF_MAX;
+	str_copy(text_prefix_buf, sizeof text_prefix_buf, prefix);
 	ui_push(SCR_TEXT, 0);
+}
+
+static void ui_text_open(char *target, uint8_t max)
+{
+	ui_text_open_title(target, max, "Name");
 }
 
 static void text_enter(void)
@@ -2595,9 +2611,15 @@ static uint16_t text_count(void) { return 1; }
 static void text_item(uint16_t i, ui_item_t *it)
 {
 	(void)i;
+	// A long message shows its tail, so the cursor is always on screen (the editor appends and deletes at the end)
+	const char *start = text_buf;
+	size_t n = strlen(text_buf);
+	if (n > 24) {
+		start = text_buf + (n - 24);
+	}
 	sbuf_t b;
 	sb_init(&b, it->label, sizeof it->label);
-	sb_str(&b, text_buf);
+	sb_str(&b, start);
 	sb_chr(&b, '_');	// the cursor; the mode is in the title
 }
 
@@ -2716,7 +2738,7 @@ static const char *text_title(void)
 }
 
 static const ui_scr_def_t text_screen = {
-	.name = "text", .flags = SF_LIST, .prefix = TRN("Name"), .title = text_title,
+	.name = "text", .flags = SF_LIST, .prefix = text_prefix_buf, .title = text_title,
 	.hint = TRN(TEXT_ALT_OPEN "Back delete  # ABC/123/abc  OK keep" TEXT_ALT_NEXT "Back del  # mode  OK" TEXT_ALT_CLOSE),
 	.count = text_count, .item = text_item, .key = text_key_fn, .enter = text_enter,
 };
@@ -5928,26 +5950,66 @@ static void icon_sync(int ox, int oy, int s, color_t c)
 }
 #endif
 
+#if CONFIG_APRS_TX
+static void icon_aprs(int ox, int oy, int s, color_t c)
+{
+	iellipse(ox, oy, s, 8, 6, 4, 4, c);		// a location pin
+	iline(ox, oy, s, 5, 9, 8, 14, c);
+	iline(ox, oy, s, 11, 9, 8, 14, c);
+	ipx(ox, oy, s, 8, 6, c);
+}
+#endif
+
+#if CONFIG_RTTY_TX
+static void icon_rtty(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 4, 13, 4, c);		// a paper tape
+	iline(ox, oy, s, 13, 4, 13, 12, c);
+	iline(ox, oy, s, 13, 12, 2, 12, c);
+	iline(ox, oy, s, 2, 12, 2, 4, c);
+	for (int x = 4; x <= 11; x += 2)		// its sprocket holes
+		ipx(ox, oy, s, x, 8, c);
+}
+#endif
+
+#if CONFIG_SAME_TX || CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_P25CC_TX || CONFIG_APRS_TX || CONFIG_RTTY_TX
+#define MENU_HAVE_TX	1
+typedef struct {
+	const char *label;
+	void (*icon)(int ox, int oy, int s, color_t c);
+	uint8_t scr;
+} menu_tx_tile_t;
+static const menu_tx_tile_t menu_tx_tiles[] = {
+#if CONFIG_SAME_TX
+	{ "SAME", icon_alert, SCR_SAME_TX },
+#endif
+#if CONFIG_OOK_TX
+	{ "OOK", icon_wave, SCR_OOK_TX },
+#endif
+#if CONFIG_MDC_TX
+	{ "MDC", icon_burst, SCR_MDC_TX },
+#endif
+#if CONFIG_P25CC_TX
+	{ "P25", icon_sync, SCR_P25CC_TX },
+#endif
+#if CONFIG_APRS_TX
+	{ "APRS", icon_aprs, SCR_APRS_TX },
+#endif
+#if CONFIG_RTTY_TX
+	{ "RTTY", icon_rtty, SCR_RTTY_TX },
+#endif
+};
+#define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
+#endif
+
 static uint16_t menu_count(uint16_t menu)
 {
 	if (menu == MENU_TOP)
 		return MT_TOP_COUNT;
-	if (menu == MENU_TX) {
-		uint16_t n = 0;
-#if CONFIG_SAME_TX
-		n++;
+#ifdef MENU_HAVE_TX
+	if (menu == MENU_TX)
+		return MENU_TX_TILES;
 #endif
-#if CONFIG_OOK_TX
-		n++;
-#endif
-#if CONFIG_MDC_TX
-		n++;
-#endif
-#if CONFIG_P25CC_TX
-		n++;
-#endif
-		return n;
-	}
 	return 0;
 }
 
@@ -5955,21 +6017,9 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 {
 	if (menu == MENU_TOP)
 		return i < MT_TOP_COUNT ? menu_top_labels[i] : "";
-#if CONFIG_SAME_TX
-	if (menu == MENU_TX && i == 0)
-		return "SAME";
-#endif
-#if CONFIG_OOK_TX
-	if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
-		return "OOK";
-#endif
-#if CONFIG_MDC_TX
-	if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
-		return "MDC";
-#endif
-#if CONFIG_P25CC_TX
-	if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
-		return "P25";
+#ifdef MENU_HAVE_TX
+	if (menu == MENU_TX)
+		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
 #endif
 	return "";
 }
@@ -5986,25 +6036,15 @@ static const char *menu_title(uint16_t menu)
 
 static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t c)
 {
-	if (menu != MENU_TOP) {
-#if CONFIG_SAME_TX
-		if (menu == MENU_TX && i == 0)
-			icon_alert(ox, oy, s, c);
-#endif
-#if CONFIG_OOK_TX
-		if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
-			icon_wave(ox, oy, s, c);
-#endif
-#if CONFIG_MDC_TX
-		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
-			icon_burst(ox, oy, s, c);
-#endif
-#if CONFIG_P25CC_TX
-		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
-			icon_sync(ox, oy, s, c);
-#endif
+#ifdef MENU_HAVE_TX
+	if (menu == MENU_TX) {
+		if (i < MENU_TX_TILES)
+			menu_tx_tiles[i].icon(ox, oy, s, c);
 		return;
 	}
+#endif
+	if (menu != MENU_TOP)
+		return;
 	switch (i) {
 	case MT_RX: icon_rx(ox, oy, s, c); break;
 	case MT_TX: icon_tx(ox, oy, s, c); break;
@@ -6018,25 +6058,15 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 
 static void menu_activate(uint16_t menu, uint16_t i)
 {
-	if (menu != MENU_TOP) {
-#if CONFIG_SAME_TX
-		if (menu == MENU_TX && i == 0)
-			ui_push(SCR_SAME_TX, 0);
-#endif
-#if CONFIG_OOK_TX
-		if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
-			ui_push(SCR_OOK_TX, 0);
-#endif
-#if CONFIG_MDC_TX
-		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
-			ui_push(SCR_MDC_TX, 0);
-#endif
-#if CONFIG_P25CC_TX
-		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
-			ui_push(SCR_P25CC_TX, 0);
-#endif
+#ifdef MENU_HAVE_TX
+	if (menu == MENU_TX) {
+		if (i < MENU_TX_TILES)
+			ui_push(menu_tx_tiles[i].scr, 0);
 		return;
 	}
+#endif
+	if (menu != MENU_TOP)
+		return;
 	switch (i) {
 	case MT_RX: ui_push(SCR_MENU, MENU_RX); break;
 	case MT_TX: ui_push(SCR_MENU, MENU_TX); break;
@@ -7307,7 +7337,7 @@ static void mdc_send(void)
 		ui_toast("Bad data");
 		return;
 	}
-	if (aprs_queue_afsk_burst(mdc_hz, true, 42, mdc_bits, nbits, 1200, 1800, 1200)) {
+	if (aprs_queue_afsk_burst(mdc_hz, true, 42, mdc_bits, nbits, 1200, 1800, 1200, 0)) {
 		ui_toast("Sending");
 	} else {
 		ui_toast(TR("Busy"));
@@ -7647,6 +7677,336 @@ static const ui_scr_def_t p25cc_screen = {
 };
 #endif	// CONFIG_P25CC_TX
 
+#if CONFIG_APRS_TX
+// ======================= APRS transmit (CONFIG_APRS_TX) =======================
+// Compose and send a status, a message or a position through the APRS engine, which frames the AX.25, keys and retries.
+// The callsign and frequency come from the radio's APRS settings, so there is no second callsign field here.
+
+enum { APRSTX_ROW_CALL, APRSTX_ROW_FREQ, APRSTX_ROW_STATE, APRSTX_ROW_STATUS, APRSTX_ROW_TO, APRSTX_ROW_MSG,
+       APRSTX_ROW_SEND_STATUS, APRSTX_ROW_SEND_MSG, APRSTX_ROW_SEND_POS, APRSTX_ROW_COUNT };
+
+static char aprstx_status[APRS_STATUS_MAX + 1];
+static char aprstx_to[AX25_CALL_LEN + 4];
+static char aprstx_msg[APRS_MSG_TEXT_MAX + 1];
+
+static const char *aprstx_block_text(uint8_t b)
+{
+	switch (b) {
+	case APRS_OK: return "Ready";
+	case APRS_NO_CALL: return "Set a callsign";
+	case APRS_NO_FREQ: return "Set an APRS frequency";
+	case APRS_NOT_AMATEUR: return "Not an amateur band";
+	case APRS_NO_POSITION: return "No position";
+	case APRS_NO_AFSK: return "No AFSK";
+	case APRS_BUSY: return "Busy";
+	default: return "Not ready";
+	}
+}
+
+static uint16_t aprstx_count(void) { return APRSTX_ROW_COUNT; }
+
+static void aprstx_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	aprs_view_t v;
+	if (!ui_svc_aprs_view(&v)) {
+		memset(&v, 0, sizeof v);
+	}
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	switch (i) {
+	case APRSTX_ROW_CALL:
+		str_copy(it->label, sizeof it->label, "Callsign");
+		sb_str(&b, v.call[0] != '\0' ? v.call : "-");
+		break;
+	case APRSTX_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (v.freq_hz != 0) {
+			sb_freq(&b, v.freq_hz);
+		}
+		break;
+	case APRSTX_ROW_STATE:
+		str_copy(it->label, sizeof it->label, "State");
+		sb_str(&b, aprstx_block_text(v.block));
+		break;
+	case APRSTX_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, "Status");
+		sb_str(&b, aprstx_status[0] != '\0' ? aprstx_status : "-");
+		break;
+	case APRSTX_ROW_TO:
+		str_copy(it->label, sizeof it->label, "Message to");
+		sb_str(&b, aprstx_to[0] != '\0' ? aprstx_to : "-");
+		break;
+	case APRSTX_ROW_MSG:
+		str_copy(it->label, sizeof it->label, "Message");
+		sb_str(&b, aprstx_msg[0] != '\0' ? aprstx_msg : "-");
+		break;
+	case APRSTX_ROW_SEND_STATUS:
+		str_copy(it->label, sizeof it->label, "Send status");
+		break;
+	case APRSTX_ROW_SEND_MSG:
+		str_copy(it->label, sizeof it->label, "Send message");
+		break;
+	case APRSTX_ROW_SEND_POS:
+		str_copy(it->label, sizeof it->label, "Send position now");
+		break;
+	default:
+		break;
+	}
+}
+
+static void aprstx_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	aprs_view_t v;
+	bool have = ui_svc_aprs_view(&v);
+	switch (i) {
+	case APRSTX_ROW_STATUS:
+		ui_text_open_title(aprstx_status, APRS_STATUS_MAX, "Status");
+		break;
+	case APRSTX_ROW_TO:
+		ui_text_open_title(aprstx_to, AX25_CALL_LEN + 3, "To");
+		break;
+	case APRSTX_ROW_MSG:
+		ui_text_open_title(aprstx_msg, APRS_MSG_TEXT_MAX, "Message");
+		break;
+	case APRSTX_ROW_SEND_STATUS:
+		if (aprstx_status[0] == '\0') {
+			ui_toast("Type a status");
+		} else if (ui_svc_aprs_send_status(aprstx_status)) {
+			ui_toast("Sending");
+		} else {
+			ui_toast(have ? aprstx_block_text(v.block) : "APRS not in this build");
+		}
+		break;
+	case APRSTX_ROW_SEND_MSG:
+		if (aprstx_to[0] == '\0' || aprstx_msg[0] == '\0') {
+			ui_toast("Type a callsign and message");
+		} else if (ui_svc_aprs_send_message(aprstx_to, aprstx_msg)) {
+			ui_toast("Sending");
+		} else {
+			ui_toast(have ? aprstx_block_text(v.block) : "APRS not in this build");
+		}
+		break;
+	case APRSTX_ROW_SEND_POS:
+		if (ui_svc_aprs_send_now()) {
+			ui_toast("Sending");
+		} else {
+			ui_toast(have ? aprstx_block_text(v.block) : "APRS not in this build");
+		}
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static const ui_scr_def_t aprstx_screen = {
+	.name = "aprs-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("APRS TX"),
+	.hint = TRN("OK change  Back"),
+	.count = aprstx_count, .item = aprstx_item, .select = aprstx_select,
+};
+#endif	// CONFIG_APRS_TX
+
+#if CONFIG_RTTY_TX
+// ======================= RTTY transmit (CONFIG_RTTY_TX) =======================
+// ITA2 AFSK at 45.45/50 baud through the raw AFSK path. Mark and shift set the two tones (space = mark + shift).
+
+enum { RTTY_ROW_FREQ, RTTY_ROW_MSG, RTTY_ROW_BAUD, RTTY_ROW_MARK, RTTY_ROW_SHIFT, RTTY_ROW_REPEAT, RTTY_ROW_TX,
+       RTTY_ROW_COUNT };
+
+static uint32_t rtty_hz;
+static char rtty_msg[101];
+static uint8_t rtty_baud_idx, rtty_mark_idx, rtty_shift_idx, rtty_repeat;
+static bool rtty_loaded;
+static bool rtty_freq_edit;
+static char rtty_digits[UI_ENTRY_MAX + 1];
+static uint8_t rtty_len;
+static uint8_t rtty_bits[APRS_AFSK_BURST_BYTES];
+static char rtty_dup[512];
+
+static const uint16_t rtty_bauds[] = { 45, 50 };
+static const char *const rtty_baud_names[] = { "45.45", "50" };
+static const uint16_t rtty_marks[] = { 2125, 1275, 1700 };
+static const uint16_t rtty_shifts[] = { 170, 425, 850 };
+
+static uint16_t rtty_count(void) { return RTTY_ROW_COUNT; }
+
+static void rtty_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = rtty_freq_edit && i == RTTY_ROW_FREQ;
+	switch (i) {
+	case RTTY_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, rtty_len != 0 ? rtty_digits : "type digits");
+		} else {
+			sb_freq(&b, rtty_hz);
+		}
+		break;
+	case RTTY_ROW_MSG:
+		str_copy(it->label, sizeof it->label, "Message");
+		sb_str(&b, rtty_msg[0] != '\0' ? rtty_msg : "-");
+		break;
+	case RTTY_ROW_BAUD:
+		str_copy(it->label, sizeof it->label, "Baud");
+		sb_str(&b, rtty_baud_names[rtty_baud_idx]);
+		break;
+	case RTTY_ROW_MARK:
+		str_copy(it->label, sizeof it->label, "Mark");
+		sb_u32(&b, rtty_marks[rtty_mark_idx], 1);
+		sb_str(&b, " Hz");
+		break;
+	case RTTY_ROW_SHIFT:
+		str_copy(it->label, sizeof it->label, "Shift");
+		sb_u32(&b, rtty_shifts[rtty_shift_idx], 1);
+		sb_str(&b, " Hz");
+		break;
+	case RTTY_ROW_REPEAT:
+		str_copy(it->label, sizeof it->label, "Repeat");
+		sb_u32(&b, rtty_repeat, 1);
+		break;
+	case RTTY_ROW_TX:
+		str_copy(it->label, sizeof it->label, "Transmit RTTY");
+		sb_str(&b, ui_view()->state == RS_TX ? "Sending" : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void rtty_send(void)
+{
+	if (rtty_msg[0] == '\0') {
+		ui_toast("Type a message");
+		return;
+	}
+	// The message repeated, a space between copies
+	size_t ml = strlen(rtty_msg);
+	rtty_dup[0] = '\0';
+	for (uint8_t r = 0; r < rtty_repeat; r++) {
+		size_t cur = strlen(rtty_dup);
+		size_t need = ml + (r != 0 ? 1u : 0u);
+		if (cur + need + 1u >= sizeof rtty_dup) {
+			break;
+		}
+		if (r != 0) {
+			rtty_dup[cur++] = ' ';
+		}
+		memcpy(rtty_dup + cur, rtty_msg, ml + 1u);
+	}
+	uint16_t nbits = rtty_encode(rtty_dup, rtty_bits, (uint16_t)(8u * sizeof rtty_bits));
+	if (nbits == 0) {
+		ui_toast("Too long");
+		return;
+	}
+	uint16_t baud = rtty_bauds[rtty_baud_idx];
+	uint16_t mark = rtty_marks[rtty_mark_idx];
+	uint16_t space = (uint16_t)(mark + rtty_shifts[rtty_shift_idx]);
+	uint32_t ms = (uint32_t)nbits * 1000u / baud + 1500u;
+	if (aprs_queue_afsk_burst(rtty_hz, false, 50, rtty_bits, nbits, baud, mark, space, ms)) {
+		ui_toast("Sending");
+	} else {
+		ui_toast(TR("Busy"));
+	}
+}
+
+static void rtty_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case RTTY_ROW_FREQ:
+		rtty_freq_edit = true;
+		rtty_len = 0;
+		rtty_digits[0] = '\0';
+		break;
+	case RTTY_ROW_MSG:
+		ui_text_open_title(rtty_msg, 100, "RTTY");
+		break;
+	case RTTY_ROW_BAUD:
+		rtty_baud_idx = (uint8_t)((rtty_baud_idx + 1u) % (sizeof rtty_bauds / sizeof rtty_bauds[0]));
+		break;
+	case RTTY_ROW_MARK:
+		rtty_mark_idx = (uint8_t)((rtty_mark_idx + 1u) % (sizeof rtty_marks / sizeof rtty_marks[0]));
+		break;
+	case RTTY_ROW_SHIFT:
+		rtty_shift_idx = (uint8_t)((rtty_shift_idx + 1u) % (sizeof rtty_shifts / sizeof rtty_shifts[0]));
+		break;
+	case RTTY_ROW_REPEAT:
+		rtty_repeat = (uint8_t)(rtty_repeat >= 5u ? 1u : rtty_repeat + 1u);
+		break;
+	case RTTY_ROW_TX:
+		if (ui_view()->state == RS_TX) {
+			radio_req_aprs_abort();
+			ui_toast("Stopped");
+		} else {
+			rtty_send();
+		}
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool rtty_key(const input_event_t *ev)
+{
+	if (!rtty_freq_edit) {
+		return false;
+	}
+	bool press = ev->gesture == GESTURE_PRESS;
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+		(void)ui_freq_entry_digit(rtty_digits, &rtty_len, (char)('0' + d));
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (rtty_len != 0) {
+			rtty_digits[--rtty_len] = '\0';
+		} else {
+			rtty_freq_edit = false;
+		}
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		rtty_freq_edit = false;
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		uint32_t hz = ui_freq_entry_hz(rtty_digits, rtty_len);
+		if (hz != 0) {
+			rtty_hz = hz;
+		}
+		rtty_freq_edit = false;
+		return true;
+	}
+	return true;
+}
+
+static void rtty_enter(void)
+{
+	if (!rtty_loaded) {
+		rtty_hz = 145500000u;
+		rtty_baud_idx = 0;
+		rtty_mark_idx = 0;
+		rtty_shift_idx = 0;
+		rtty_repeat = 1;
+		rtty_loaded = true;
+	}
+	rtty_freq_edit = false;
+}
+
+static const ui_scr_def_t rtty_screen = {
+	.name = "rtty-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("RTTY TX"),
+	.hint = TRN("OK change  Back"),
+	.count = rtty_count, .item = rtty_item, .select = rtty_select, .key = rtty_key, .enter = rtty_enter,
+};
+#endif	// CONFIG_RTTY_TX
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -7675,6 +8035,12 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_P25CC_TX
 	[SCR_P25CC_TX] = &p25cc_screen,
+#endif
+#if CONFIG_APRS_TX
+	[SCR_APRS_TX] = &aprstx_screen,
+#endif
+#if CONFIG_RTTY_TX
+	[SCR_RTTY_TX] = &rtty_screen,
 #endif
 #if CONFIG_REF_TRIM
 	[SCR_REF_TRIM] = &trim_screen,

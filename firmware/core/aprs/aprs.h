@@ -201,8 +201,9 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms);
 // A raw AFSK burst (an app's tone data, not AX.25): the bits are copied, LSB first as afsk_mod reads them, and sent
 // on hz without the callsign or amateur-band checks (still band_tx only). False: one is already waiting, or too long
 #define APRS_AFSK_BURST_BYTES	512
+// duration_ms bounds the transmission (0: the AFSK default of 6 s; RTTY passes its own, it is slow)
 bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
-			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz);
+			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz, uint32_t duration_ms);
 // A raw OOK burst (the OOK TX app): the bits (MSB first) are copied and board.ook keys the PA at bit_us, repeat times
 // with pause_us between. The APRS RF service keys and unkeys the transmitter as for AFSK. False: one is waiting, too
 // long, or the board has no OOK path

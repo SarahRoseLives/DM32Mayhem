@@ -142,7 +142,7 @@ bool same_tx_send(const same_cfg_t *c)
 		n = (uint16_t)(n + mlen);
 	}
 	return aprs_queue_afsk_burst(c->hz, c->narrow, c->level, bits, (uint16_t)((size_t)n * 8u), SAME_BAUD,
-				     SAME_MARK_HZ, SAME_SPACE_HZ);
+				     SAME_MARK_HZ, SAME_SPACE_HZ, 0);
 }
 
 #endif	// CONFIG_SAME_TX

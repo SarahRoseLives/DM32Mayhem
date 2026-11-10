@@ -290,6 +290,15 @@
 #ifndef CONFIG_P25CC_TX
 #define CONFIG_P25CC_TX			0
 #endif
+
+// The APRS TX app (UI only). Needs APRS
+#ifndef CONFIG_APRS_TX
+#define CONFIG_APRS_TX			0
+#endif
+// The RTTY TX app (core/rtty). Needs FM and APRS
+#ifndef CONFIG_RTTY_TX
+#define CONFIG_RTTY_TX			0
+#endif
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS
 #endif

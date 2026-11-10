@@ -1614,7 +1614,7 @@ bool aprs_queue_raw_frame(const uint8_t *frame, size_t n)
 // A raw AFSK burst (SAME): no AX.25 framing, no callsign or amateur-band check, only band_tx (the radio still refuses
 // an out-of-band tx() itself). The bits are copied, LSB first as afsk_mod reads them.
 bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
-			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz)
+			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz, uint32_t duration_ms)
 {
 	if (tones == NULL || nbits == 0 || nbits > 8u * APRS_AFSK_BURST_BYTES) {
 		return false;
@@ -1632,7 +1632,7 @@ bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_
 		a.raw.space_hz = space_hz;
 		a.raw.ook = false;
 		a.raw.p25 = false;
-		a.raw.send_max_ms = RF_SEND_MAX_MS;
+		a.raw.send_max_ms = duration_ms != 0 ? duration_ms : RF_SEND_MAX_MS;
 		a.raw.pending = true;
 		a.raw.taken = false;
 		changed();

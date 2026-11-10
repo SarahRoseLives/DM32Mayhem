@@ -40,6 +40,8 @@ typedef enum {
 	SCR_OOK_TX,			// the OOK / de Bruijn transmitter (CONFIG_OOK_TX, core/ook)
 	SCR_MDC_TX,			// the MDC-1200 signaling transmitter (CONFIG_MDC_TX, core/mdc)
 	SCR_P25CC_TX,			// the P25 control channel transmitter (CONFIG_P25CC_TX, core/p25cc)
+	SCR_APRS_TX,			// the APRS status/message transmitter (CONFIG_APRS_TX)
+	SCR_RTTY_TX,			// the RTTY transmitter (CONFIG_RTTY_TX, core/rtty)
 	SCR_COUNT
 } ui_scr_t;
 

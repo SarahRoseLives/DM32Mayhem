@@ -654,6 +654,96 @@ const hal_ook_t dm32_ook = {
 };
 #endif	// CONFIG_OOK_TX
 
+#if CONFIG_P25CC_TX
+// P25 CC TX (hal_p25_tx.h): the core keys the carrier in FM; the microphone is muted, the modem is switched to its
+// physical-layer continuous 4FSK transmitter and fed 36-byte blocks (144 symbols, 30 ms) from the looping stream.
+// TIMER 6 refills the TX RAM at the slot rate. The PA is already keyed by the FM tx() path.
+#define P25_BLOCK_BYTES	36u
+static const uint8_t *p25_bytes;
+static uint16_t p25_len, p25_pos;
+static volatile bool p25_busy;
+static bool p25_irq_set;
+static uint8_t p25_half;
+static uint32_t p25_wm_saved, p25_l2_saved, p25_txrx_saved;
+
+static void p25_block(uint8_t half)
+{
+	uint32_t off = C7_TX_RAM + (half ? 0x24u : 0x00u);
+	for (uint16_t i = 0; i < P25_BLOCK_BYTES; i++) {
+		modem.buf[off + i] = p25_bytes[p25_pos];
+		if (++p25_pos >= p25_len) {
+			p25_pos = 0;
+		}
+	}
+}
+
+static void p25_tick(void)
+{
+	hrc_timer_ack(6);
+	if (!p25_busy) {
+		return;
+	}
+	p25_block(p25_half);
+	p25_half ^= 1u;
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x81u);	// send the next slot
+}
+
+static bool p25_start(const uint8_t *bytes, uint16_t len)
+{
+	if (!transmitting || mode != RADIO_MODE_FM || p25_busy || bytes == NULL || len < P25_BLOCK_BYTES) {
+		return false;
+	}
+	if (!afsk_tx_route(true)) {
+		return false;		// mutes the microphone
+	}
+	p25_wm_saved = hrc7000_rd(&modem, C7_WORK_MODE);
+	p25_l2_saved = hrc7000_rd(&modem, C7_LAYER2_CONTROL);
+	p25_txrx_saved = hrc7000_rd(&modem, C7_LAYER2_TXRX_CTRL);
+	p25_bytes = bytes;
+	p25_len = len;
+	p25_pos = 0;
+	p25_half = 0;
+	p25_block(0);			// the first two slots: SEND_DATA0 and SEND_DATA1
+	p25_block(1);
+	hrc7000_wr(&modem, C7_WORK_MODE, C7_WORK_MODE_FM);
+	hrc7000_wr(&modem, C7_WORK_MODE, 0x02u);	// physical layer, continuous
+	hrc7000_wr(&modem, C7_LAYER2_CONTROL, 0x82u);	// own TX slot timing
+	hrc7000_wr(&modem, C7_AUDIO_BUFFER_CLR, 0x03u);
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x81u);
+	p25_busy = true;
+	if (!p25_irq_set) {
+		hrc_irq_register(IRQ_TIMER6, p25_tick);
+		hrc_irq_enable(IRQ_TIMER6, true);
+		p25_irq_set = true;
+	}
+	hrc_timer_periodic(6, 30000u);
+	return true;
+}
+
+static bool p25_busy_fn(void)
+{
+	return p25_busy;
+}
+
+static void p25_stop(void)
+{
+	hrc_timer_stop(6);
+	p25_busy = false;
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x00u);
+	hrc7000_wr(&modem, C7_WORK_MODE, C7_WORK_MODE_FM);
+	hrc7000_wr(&modem, C7_LAYER2_CONTROL, p25_l2_saved);
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, p25_txrx_saved);
+	hrc7000_wr(&modem, C7_WORK_MODE, p25_wm_saved);
+	afsk_tx_route(false);
+}
+
+const hal_p25_tx_t dm32_p25_tx = {
+	.start = p25_start,
+	.busy = p25_busy_fn,
+	.stop = p25_stop,
+};
+#endif	// CONFIG_P25CC_TX
+
 #if CONFIG_BCAST_FM
 // The broadcast receiver's audio (hrc_bcast.h audio_path) needs the amplifier. The core mutes the channel's audio
 // while it plays, so the speaker source stays on the codec, which is silent then

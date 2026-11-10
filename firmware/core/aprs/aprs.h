@@ -186,6 +186,7 @@ typedef struct {
 	uint16_t baud;		// AFSK: Bell 202 for APRS, other speeds and tones for a raw burst
 	uint16_t mark_hz, space_hz;
 	bool ook;		// an OOK burst: board.ook sends the bits by keying the PA, not the AFSK modulator
+	bool p25;		// a P25 PHY burst: board.p25_tx streams the bytes through the modem's 4FSK transmitter
 	uint32_t bit_us;	// OOK: bit length
 	uint8_t repeat;		// OOK: transmissions
 	uint32_t pause_us;	// OOK: silence between them
@@ -207,6 +208,9 @@ bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_
 // long, or the board has no OOK path
 bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint32_t bit_us, uint8_t repeat,
 			  uint32_t pause_us);
+// A P25 PHY burst (the P25 CC app): the bytes (packed dibits) are copied and board.p25_tx streams them, looping, for
+// at most duration_ms. The APRS RF service keys and unkeys the transmitter. False: one is waiting or the board has none
+bool aprs_queue_p25_burst(uint32_t hz, const uint8_t *bytes, uint16_t len, uint32_t duration_ms);
 // Seconds a pending job may wait for a clear channel before it is dropped
 #define APRS_CSMA_GIVE_UP_MS	10000u
 

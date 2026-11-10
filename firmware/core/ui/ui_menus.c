@@ -36,6 +36,9 @@
 #if CONFIG_MDC_TX
 #include "mdc/mdc.h"
 #endif
+#if CONFIG_P25CC_TX
+#include "p25cc/p25cc.h"
+#endif
 
 #ifndef RFOUNDRY_GIT
 #define RFOUNDRY_GIT "host"
@@ -5914,6 +5917,17 @@ static void icon_burst(int ox, int oy, int s, color_t c)
 }
 #endif
 
+#if CONFIG_P25CC_TX
+static void icon_sync(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 3, 2, 13, c);		// a P25 control channel frame
+	iline(ox, oy, s, 5, 3, 5, 13, c);
+	iline(ox, oy, s, 8, 6, 8, 10, c);
+	iline(ox, oy, s, 11, 3, 11, 13, c);
+	iline(ox, oy, s, 14, 6, 14, 10, c);
+}
+#endif
+
 static uint16_t menu_count(uint16_t menu)
 {
 	if (menu == MENU_TOP)
@@ -5927,6 +5941,9 @@ static uint16_t menu_count(uint16_t menu)
 		n++;
 #endif
 #if CONFIG_MDC_TX
+		n++;
+#endif
+#if CONFIG_P25CC_TX
 		n++;
 #endif
 		return n;
@@ -5949,6 +5966,10 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 #if CONFIG_MDC_TX
 	if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
 		return "MDC";
+#endif
+#if CONFIG_P25CC_TX
+	if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
+		return "P25";
 #endif
 	return "";
 }
@@ -5978,6 +5999,10 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
 			icon_burst(ox, oy, s, c);
 #endif
+#if CONFIG_P25CC_TX
+		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
+			icon_sync(ox, oy, s, c);
+#endif
 		return;
 	}
 	switch (i) {
@@ -6005,6 +6030,10 @@ static void menu_activate(uint16_t menu, uint16_t i)
 #if CONFIG_MDC_TX
 		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
 			ui_push(SCR_MDC_TX, 0);
+#endif
+#if CONFIG_P25CC_TX
+		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0) + (CONFIG_MDC_TX ? 1 : 0)))
+			ui_push(SCR_P25CC_TX, 0);
 #endif
 		return;
 	}
@@ -7375,6 +7404,249 @@ static const ui_scr_def_t mdc_screen = {
 };
 #endif	// CONFIG_MDC_TX
 
+#if CONFIG_P25CC_TX
+// ======================= The P25 control channel transmitter (CONFIG_P25CC_TX) =======================
+// Broadcasts a rotating set of control channel TSBKs (IDEN_UP, NET_STS, RFSS_STS and a group voice grant) through the
+// modem's PHY 4FSK transmitter. The frame format is in core/p25cc; this is the site's identity and channel plan.
+
+enum { P25_ROW_FREQ, P25_ROW_NAC, P25_ROW_WACN, P25_ROW_SYS, P25_ROW_RFSS, P25_ROW_SITE, P25_ROW_TG, P25_ROW_VCH,
+       P25_ROW_TX, P25_ROW_COUNT };
+
+static uint32_t p25_hz, p25_rfss, p25_site, p25_tg, p25_vch;
+static char p25_hex_nac[6] = "293", p25_hex_wacn[6] = "BEEF0", p25_hex_sys[6] = "001";
+static bool p25_loaded;
+static int8_t p25_edit = -1;
+static char p25_digits[UI_ENTRY_MAX + 1];
+static uint8_t p25_len, p25_edit_max;
+static uint8_t p25_stream[APRS_AFSK_BURST_BYTES];
+
+static void p25_num_digits(uint32_t v, uint8_t max)
+{
+	char tmp[10];
+	int n = 0;
+	if (v == 0) {
+		tmp[n++] = '0';
+	} else {
+		while (v != 0 && n < (int)sizeof tmp) {
+			tmp[n++] = (char)('0' + v % 10u);
+			v /= 10u;
+		}
+	}
+	p25_len = (uint8_t)(n <= (int)max ? n : (int)max);
+	for (uint8_t i = 0; i < p25_len; i++) {
+		p25_digits[i] = tmp[n - 1 - i];
+	}
+	p25_digits[p25_len] = '\0';
+}
+
+// A hex field ("BEEF0"): digits and A-F, either case; other characters are ignored
+static uint32_t p25_hexval(const char *s)
+{
+	uint32_t v = 0;
+	for (; *s != '\0'; s++) {
+		int d = *s >= '0' && *s <= '9' ? *s - '0' : *s >= 'a' && *s <= 'f' ? *s - 'a' + 10 :
+			*s >= 'A' && *s <= 'F' ? *s - 'A' + 10 : -1;
+		if (d >= 0) {
+			v = (v << 4) | (uint32_t)d;
+		}
+	}
+	return v;
+}
+
+static uint16_t p25_count(void) { return P25_ROW_COUNT; }
+
+static void p25_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = p25_edit == (int8_t)i;
+	bool num = edit && i != P25_ROW_TX && i != P25_ROW_FREQ;
+	switch (i) {
+	case P25_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, p25_len != 0 ? p25_digits : "type digits");
+		} else {
+			sb_freq(&b, p25_hz);
+		}
+		break;
+	case P25_ROW_NAC:
+		str_copy(it->label, sizeof it->label, "NAC");
+		sb_str(&b, p25_hex_nac);
+		break;
+	case P25_ROW_WACN:
+		str_copy(it->label, sizeof it->label, "WACN");
+		sb_str(&b, p25_hex_wacn);
+		break;
+	case P25_ROW_SYS:
+		str_copy(it->label, sizeof it->label, "System ID");
+		sb_str(&b, p25_hex_sys);
+		break;
+	case P25_ROW_RFSS:
+		str_copy(it->label, sizeof it->label, "RFSS");
+		if (num) { it->flags |= UI_ITEM_EDIT; sb_str(&b, p25_len ? p25_digits : "0"); }
+		else sb_u32(&b, p25_rfss, 1);
+		break;
+	case P25_ROW_SITE:
+		str_copy(it->label, sizeof it->label, "Site");
+		if (num) { it->flags |= UI_ITEM_EDIT; sb_str(&b, p25_len ? p25_digits : "0"); }
+		else sb_u32(&b, p25_site, 1);
+		break;
+	case P25_ROW_TG:
+		str_copy(it->label, sizeof it->label, "Talkgroup");
+		if (num) { it->flags |= UI_ITEM_EDIT; sb_str(&b, p25_len ? p25_digits : "0"); }
+		else sb_u32(&b, p25_tg, 1);
+		break;
+	case P25_ROW_VCH:
+		str_copy(it->label, sizeof it->label, "Voice channel");
+		if (num) { it->flags |= UI_ITEM_EDIT; sb_str(&b, p25_len ? p25_digits : "0"); }
+		else sb_u32(&b, p25_vch, 1);
+		break;
+	case P25_ROW_TX:
+		str_copy(it->label, sizeof it->label, "Transmit P25 CC");
+		sb_str(&b, ui_view()->state == RS_TX ? "Stop" : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void p25_commit(void)
+{
+	unsigned v = 0;
+	for (uint8_t i = 0; i < p25_len; i++) {
+		v = v * 10u + (unsigned)(p25_digits[i] - '0');
+	}
+	switch (p25_edit) {
+	case P25_ROW_FREQ: {
+		uint32_t hz = ui_freq_entry_hz(p25_digits, p25_len);
+		if (hz != 0) {
+			p25_hz = hz;
+		}
+		break;
+	}
+	case P25_ROW_RFSS: p25_rfss = v > 255u ? 255u : v; break;
+	case P25_ROW_SITE: p25_site = v > 255u ? 255u : v; break;
+	case P25_ROW_TG: p25_tg = v > 0xFFFFu ? 0xFFFFu : v; break;
+	case P25_ROW_VCH: p25_vch = v > 4095u ? 4095u : v; break;
+	default: break;
+	}
+}
+
+static void p25_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	if (i == P25_ROW_TX) {
+		if (ui_view()->state == RS_TX) {
+			radio_req_aprs_abort();
+			ui_toast("Stopped");
+		} else {
+			p25cc_cfg_t c = {
+				.nac = (uint16_t)(p25_hexval(p25_hex_nac) & 0xFFFu),
+				.wacn = p25_hexval(p25_hex_wacn) & 0xFFFFFu,
+				.sysid = (uint16_t)(p25_hexval(p25_hex_sys) & 0xFFFu),
+				.rfss = (uint8_t)p25_rfss, .site = (uint8_t)p25_site, .tg = (uint16_t)p25_tg,
+				.vch = (uint16_t)p25_vch, .freq_hz = p25_hz,
+			};
+			uint16_t n = p25cc_build(&c, p25_stream, (uint16_t)sizeof p25_stream);
+			if (n == 0) {
+				ui_toast("Bad data");
+			} else if (aprs_queue_p25_burst(p25_hz, p25_stream, n, 30000u)) {
+				ui_toast("Sending");
+			} else {
+				ui_toast(TR("Busy"));
+			}
+		}
+		ui_dirty();
+		return;
+	}
+	// The hex fields use the keypad text editor, so letters (BEEF0) can be typed; the rest take digits inline
+	if (i == P25_ROW_NAC) {
+		ui_text_open(p25_hex_nac, 3);
+		return;
+	}
+	if (i == P25_ROW_WACN) {
+		ui_text_open(p25_hex_wacn, 5);
+		return;
+	}
+	if (i == P25_ROW_SYS) {
+		ui_text_open(p25_hex_sys, 3);
+		return;
+	}
+	p25_edit = (int8_t)i;
+	if (i == P25_ROW_FREQ) {
+		p25_edit_max = UI_ENTRY_MAX;
+		p25_len = 0;			// type the new frequency from the start
+		p25_digits[0] = '\0';
+	} else {
+		uint32_t v = i == P25_ROW_RFSS ? p25_rfss : i == P25_ROW_SITE ? p25_site : i == P25_ROW_TG ? p25_tg : p25_vch;
+		p25_edit_max = i == P25_ROW_TG ? 5u : i == P25_ROW_SITE ? 3u : 4u;
+		p25_num_digits(v, p25_edit_max);
+	}
+	ui_dirty();
+}
+
+static bool p25_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (p25_edit < 0) {
+		return false;
+	}
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+		if (p25_edit == P25_ROW_FREQ) {
+			(void)ui_freq_entry_digit(p25_digits, &p25_len, (char)('0' + d));
+		} else if (p25_len < p25_edit_max) {
+			p25_digits[p25_len++] = (char)('0' + d);
+			p25_digits[p25_len] = '\0';
+		}
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (p25_len != 0) {
+			p25_digits[--p25_len] = '\0';
+		} else {
+			p25_edit = -1;
+		}
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		p25_edit = -1;
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		p25_commit();
+		p25_edit = -1;
+		return true;
+	}
+	return true;
+}
+
+static void p25_enter(void)
+{
+	if (!p25_loaded) {
+		p25_hz = 145500000u;
+		str_copy(p25_hex_nac, sizeof p25_hex_nac, "293");
+		str_copy(p25_hex_wacn, sizeof p25_hex_wacn, "BEEF0");
+		str_copy(p25_hex_sys, sizeof p25_hex_sys, "001");
+		p25_rfss = 1;
+		p25_site = 1;
+		p25_tg = 1;
+		p25_vch = 1;
+		p25_loaded = true;
+	}
+	p25_edit = -1;
+}
+
+static const ui_scr_def_t p25cc_screen = {
+	.name = "p25cc-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("P25 CC"),
+	.hint = TRN("OK change  Back"),
+	.count = p25_count, .item = p25_item, .select = p25_select, .key = p25_key, .enter = p25_enter,
+};
+#endif	// CONFIG_P25CC_TX
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -7400,6 +7672,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_MDC_TX
 	[SCR_MDC_TX] = &mdc_screen,
+#endif
+#if CONFIG_P25CC_TX
+	[SCR_P25CC_TX] = &p25cc_screen,
 #endif
 #if CONFIG_REF_TRIM
 	[SCR_REF_TRIM] = &trim_screen,

@@ -106,6 +106,9 @@ endif
 ifeq ($(CONFIG_MDC_TX),y)
 CORE_DIRS += core/mdc
 endif
+ifeq ($(CONFIG_P25CC_TX),y)
+CORE_DIRS += core/p25cc
+endif
 ifeq ($(CONFIG_SNMP),y)
 CORE_DIRS += core/snmp
 endif

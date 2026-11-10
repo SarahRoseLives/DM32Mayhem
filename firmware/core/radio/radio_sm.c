@@ -3247,6 +3247,13 @@ void radio_sm_shown_view(const radio_sm_t *sm, radio_view_t *v) { (void)sm; (voi
 #endif
 
 #if CONFIG_APRS
+static volatile bool aprs_abort_req;
+
+void radio_req_aprs_abort(void)
+{
+	aprs_abort_req = true;
+}
+
 // --- APRS transmissions (core/aprs, docs/spec/aprs.md 6) ---
 // The engine (aprs_tick) decides what to send; here the radio leaves the user's channel for the APRS frequency (FM,
 // no subtone), waits for a clear channel (p-persistent CSMA on the noise reading), keys up, lets board.afsk send the
@@ -3317,7 +3324,11 @@ static void aprs_rf_end(radio_sm_t *sm, aprs_rf_result_t r, uint32_t now_ms)
 		return;
 	}
 	if (phase == APRS_RF_SEND) {
-		if (sm->aprs_job.ook) {
+		if (sm->aprs_job.p25) {
+			if (board.p25_tx != NULL) {
+				board.p25_tx->stop();
+			}
+		} else if (sm->aprs_job.ook) {
 			if (board.ook != NULL) {
 				board.ook->stop();
 			}
@@ -3366,6 +3377,11 @@ static void aprs_rf_start(radio_sm_t *sm, uint32_t now_ms)
 static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t now_ms)
 {
 	static const subtone_t none = { TONE_NONE, 0 };
+	if (aprs_abort_req) {
+		aprs_abort_req = false;
+		aprs_rf_abort(sm, now_ms);
+		return;
+	}
 	switch (sm->aprs_phase) {
 	case APRS_RF_LISTEN:
 		if (now_ms - sm->aprs_listen_ms >= APRS_CSMA_GIVE_UP_MS) {
@@ -3410,7 +3426,12 @@ static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t n
 		if (now_ms - sm->aprs_ms < APRS_KEYUP_MS) {
 			return;
 		}
-		if (sm->aprs_job.ook) {
+		if (sm->aprs_job.p25) {
+			if (board.p25_tx == NULL || !board.p25_tx->start(sm->aprs_job.tones, sm->aprs_job.nbits)) {
+				aprs_rf_end(sm, APRS_RF_NO_AFSK, now_ms);
+				return;
+			}
+		} else if (sm->aprs_job.ook) {
 			if (board.ook == NULL || !board.ook->start(sm->aprs_job.tones, sm->aprs_job.nbits, sm->aprs_job.bit_us,
 								   sm->aprs_job.repeat, sm->aprs_job.pause_us)) {
 				aprs_rf_end(sm, APRS_RF_NO_AFSK, now_ms);
@@ -3425,7 +3446,8 @@ static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t n
 		sm->aprs_ms = now_ms;
 		break;
 	case APRS_RF_SEND: {
-		bool busy = sm->aprs_job.ook ? (board.ook != NULL && board.ook->busy()) : board.afsk->tx_busy();
+		bool busy = sm->aprs_job.p25 ? (board.p25_tx != NULL && board.p25_tx->busy()) :
+			sm->aprs_job.ook ? (board.ook != NULL && board.ook->busy()) : board.afsk->tx_busy();
 		uint32_t limit = sm->aprs_job.send_max_ms != 0 ? sm->aprs_job.send_max_ms : APRS_SEND_MAX_MS;
 		if (!busy) {
 			aprs_rf_end(sm, APRS_RF_SENT, now_ms);
@@ -3467,6 +3489,7 @@ static void aprs_poll(radio_sm_t *sm, uint32_t now_ms)
 }
 #else
 static inline void aprs_rf_abort(radio_sm_t *sm, uint32_t now_ms) { (void)sm; (void)now_ms; }
+void radio_req_aprs_abort(void) {}
 #endif
 
 // --- DTMF (CONFIG_DTMF; radio-features.md 3.7): a digit key held during an FM transmission sends its pair ---

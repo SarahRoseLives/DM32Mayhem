@@ -285,6 +285,11 @@
 #ifndef CONFIG_MDC_TX
 #define CONFIG_MDC_TX			0
 #endif
+
+// The P25 control channel transmitter (core/p25cc). Needs FM and APRS
+#ifndef CONFIG_P25CC_TX
+#define CONFIG_P25CC_TX			0
+#endif
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS
 #endif

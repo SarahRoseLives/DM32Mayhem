@@ -362,6 +362,8 @@ void radio_req_monitor(bool down);
 // The monitor key released after its hold function ran (keyassign.h): FM closes the squelch, DMR doesn't toggle
 void radio_req_monitor_held_up(void);
 void radio_req_power(int8_t dir);		// temporary change of power level, wraps
+// Stop a running APRS/OOK/P25 raw transmission now (the radio task unkeys and tunes back)
+void radio_req_aprs_abort(void);
 void radio_req_squelch(int8_t dir);
 void radio_req_clear_temporary(void);		// BACK on Home: revert temporary changes
 void radio_req_retune(void);			// tune again now, or after the transmission (the reference trim changed)

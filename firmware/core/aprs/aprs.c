@@ -98,6 +98,7 @@ static struct {
 	struct {		// a raw AFSK or OOK burst: no AX.25 framing or callsign/amateur checks
 		bool pending, taken;
 		bool ook;
+		bool p25;
 		uint32_t hz;
 		bool narrow;
 		uint8_t level;
@@ -1291,6 +1292,7 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 		job->mark_hz = a.raw.mark_hz;
 		job->space_hz = a.raw.space_hz;
 		job->ook = a.raw.ook;
+		job->p25 = a.raw.p25;
 		job->bit_us = a.raw.bit_us;
 		job->repeat = a.raw.repeat;
 		job->pause_us = a.raw.pause_us;
@@ -1345,6 +1347,7 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 	job->mark_hz = AFSK_MARK_HZ;
 	job->space_hz = AFSK_SPACE_HZ;
 	job->ook = false;
+	job->p25 = false;
 	job->send_max_ms = RF_SEND_MAX_MS;
 	a.v.rf_active = true;
 	changed();
@@ -1628,6 +1631,7 @@ bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_
 		a.raw.mark_hz = mark_hz;
 		a.raw.space_hz = space_hz;
 		a.raw.ook = false;
+		a.raw.p25 = false;
 		a.raw.send_max_ms = RF_SEND_MAX_MS;
 		a.raw.pending = true;
 		a.raw.taken = false;
@@ -1660,10 +1664,37 @@ bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint
 		a.raw.level = 0;
 		a.raw.nbits = nbits;
 		a.raw.ook = true;
+		a.raw.p25 = false;
 		a.raw.bit_us = bit_us;
 		a.raw.repeat = (uint8_t)(reps > 255u ? 255u : reps);
 		a.raw.pause_us = pause_us;
 		a.raw.send_max_ms = ms;
+		a.raw.pending = true;
+		a.raw.taken = false;
+		changed();
+	}
+	UNLOCK();
+	return ok;
+}
+
+// A P25 PHY burst: the packed dibit bytes are copied, board.p25_tx streams them (looping) and the APRS RF service
+// keys/unkeys the transmitter. duration_ms bounds it (the UI can abort sooner).
+bool aprs_queue_p25_burst(uint32_t hz, const uint8_t *bytes, uint16_t len, uint32_t duration_ms)
+{
+	if (bytes == NULL || len == 0 || len > APRS_AFSK_BURST_BYTES || board.p25_tx == NULL) {
+		return false;
+	}
+	LOCK();
+	bool ok = !a.raw.pending && band_tx(hz);
+	if (ok) {
+		memcpy(a.raw.tones, bytes, len);
+		a.raw.hz = hz;
+		a.raw.narrow = false;
+		a.raw.level = 0;
+		a.raw.nbits = len;
+		a.raw.ook = false;
+		a.raw.p25 = true;
+		a.raw.send_max_ms = duration_ms != 0 ? duration_ms : 30000u;
 		a.raw.pending = true;
 		a.raw.taken = false;
 		changed();

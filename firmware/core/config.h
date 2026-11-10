@@ -275,6 +275,16 @@
 #ifndef CONFIG_SAME_TX
 #define CONFIG_SAME_TX			0
 #endif
+
+// The OOK TX app (core/ook). Needs FM and APRS
+#ifndef CONFIG_OOK_TX
+#define CONFIG_OOK_TX			0
+#endif
+
+// The MDC-1200 signaling transmitter (core/mdc). Needs FM and APRS
+#ifndef CONFIG_MDC_TX
+#define CONFIG_MDC_TX			0
+#endif
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS
 #endif

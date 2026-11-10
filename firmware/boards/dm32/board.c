@@ -86,6 +86,9 @@ const board_t board = {
 	.side_key_names = side_key_names,
 	.side_key_count = sizeof(side_keys),
 	.radio = &dm32_radio,
+#if CONFIG_OOK_TX
+	.ook = &dm32_ook,
+#endif
 	.power = &dm32_power,
 	.flash = &hrc_flash_spi0,
 #if CONFIG_DIAG

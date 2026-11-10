@@ -185,6 +185,11 @@ typedef struct {
 	bool immediate;		// a connected-mode reply (the BBS): send without the APRS carrier-sense wait
 	uint16_t baud;		// AFSK: Bell 202 for APRS, other speeds and tones for a raw burst
 	uint16_t mark_hz, space_hz;
+	bool ook;		// an OOK burst: board.ook sends the bits by keying the PA, not the AFSK modulator
+	uint32_t bit_us;	// OOK: bit length
+	uint8_t repeat;		// OOK: transmissions
+	uint32_t pause_us;	// OOK: silence between them
+	uint32_t send_max_ms;	// how long the transmission may take before it is cut off
 } aprs_rf_job_t;
 // A transmission is waiting (the radio core then checks it can start)
 bool aprs_rf_pending(void);
@@ -197,6 +202,11 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms);
 #define APRS_AFSK_BURST_BYTES	512
 bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
 			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz);
+// A raw OOK burst (the OOK TX app): the bits (MSB first) are copied and board.ook keys the PA at bit_us, repeat times
+// with pause_us between. The APRS RF service keys and unkeys the transmitter as for AFSK. False: one is waiting, too
+// long, or the board has no OOK path
+bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint32_t bit_us, uint8_t repeat,
+			  uint32_t pause_us);
 // Seconds a pending job may wait for a clear channel before it is dropped
 #define APRS_CSMA_GIVE_UP_MS	10000u
 

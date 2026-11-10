@@ -570,6 +570,90 @@ static bool afsk_tx_route(bool on)
 }
 #endif
 
+#if CONFIG_OOK_TX
+// OOK TX (hal_ook.h, the OOK TX app): the core keys the carrier in FM, the microphone is muted and the PA drive on
+// DAC B is switched between 0 (PA off) and tx_drive at each bit. TIMER_BOARD (5) is free on this board.
+static const uint8_t *ook_bits;
+static uint16_t ook_nbits, ook_bit, ook_pause, ook_pause_bits;
+static uint8_t ook_repeat;
+static volatile bool ook_busy;
+static bool ook_irq_set;
+
+static void ook_tick(void)
+{
+	hrc_timer_ack(TIMER_BOARD);
+	if (!ook_busy) {
+		return;
+	}
+	if (ook_pause != 0) {
+		ook_pause--;
+		DAC_DATA_B = 0;
+		return;
+	}
+	if (ook_bit >= ook_nbits) {
+		if (ook_repeat != 0) {
+			ook_repeat--;
+			ook_bit = 0;
+			ook_pause = ook_pause_bits;
+			DAC_DATA_B = 0;
+			return;
+		}
+		ook_busy = false;
+		DAC_DATA_B = 0;
+		hrc_timer_stop(TIMER_BOARD);
+		return;
+	}
+	bool bit = (ook_bits[ook_bit >> 3] >> (7u - (ook_bit & 7u))) & 1u;
+	DAC_DATA_B = bit ? tx_drive : 0;
+	ook_bit++;
+}
+
+static bool ook_start(const uint8_t *bits, uint16_t nbits, uint32_t bit_us, uint8_t repeat, uint32_t pause_us)
+{
+	if (!transmitting || mode != RADIO_MODE_FM || ook_busy || bits == NULL || nbits == 0 || bit_us < 50u ||
+			bit_us > 100000u) {
+		return false;
+	}
+	if (!afsk_tx_route(true)) {
+		return false;		// mutes the microphone and leaves the modulator silent
+	}
+	ook_bits = bits;
+	ook_nbits = nbits;
+	ook_repeat = repeat > 0 ? (uint8_t)(repeat - 1u) : 0;
+	ook_pause_bits = (uint16_t)(pause_us / bit_us);
+	ook_pause = 0;
+	ook_bit = 1;			// the first bit is written here; the timer starts the second
+	ook_busy = true;
+	if (!ook_irq_set) {
+		hrc_irq_register(IRQ_TIMER5, ook_tick);
+		hrc_irq_enable(IRQ_TIMER5, true);
+		ook_irq_set = true;
+	}
+	DAC_DATA_B = (bits[0] >> 7) & 1u ? tx_drive : 0;
+	hrc_timer_periodic(TIMER_BOARD, bit_us);
+	return true;
+}
+
+static bool ook_busy_fn(void)
+{
+	return ook_busy;
+}
+
+static void ook_stop(void)
+{
+	hrc_timer_stop(TIMER_BOARD);
+	ook_busy = false;
+	DAC_DATA_B = 0;
+	afsk_tx_route(false);		// the microphone back
+}
+
+const hal_ook_t dm32_ook = {
+	.start = ook_start,
+	.busy = ook_busy_fn,
+	.stop = ook_stop,
+};
+#endif	// CONFIG_OOK_TX
+
 #if CONFIG_BCAST_FM
 // The broadcast receiver's audio (hrc_bcast.h audio_path) needs the amplifier. The core mutes the channel's audio
 // while it plays, so the speaker source stays on the codec, which is silent then

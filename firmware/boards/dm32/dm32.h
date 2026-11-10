@@ -24,6 +24,9 @@ extern const hal_input_t dm32_input;
 // Key scans with the PTT pin low that were ignored as host serial data (hardware-dm32.md 6.2)
 uint32_t dm32_input_ptt_ignored(void);
 extern const hal_radio_t dm32_radio;
+#if CONFIG_OOK_TX
+extern const hal_ook_t dm32_ook;
+#endif
 extern const hal_power_t dm32_power;
 
 // Physical key bits returned by dm32_input.scan() (matrix in docs/spec/hardware-dm32.md 6.1, 6.2)

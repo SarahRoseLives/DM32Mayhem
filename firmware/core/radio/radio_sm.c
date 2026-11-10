@@ -3317,7 +3317,13 @@ static void aprs_rf_end(radio_sm_t *sm, aprs_rf_result_t r, uint32_t now_ms)
 		return;
 	}
 	if (phase == APRS_RF_SEND) {
-		board.afsk->tx_stop();
+		if (sm->aprs_job.ook) {
+			if (board.ook != NULL) {
+				board.ook->stop();
+			}
+		} else {
+			board.afsk->tx_stop();
+		}
 	}
 	if (phase >= APRS_RF_KEYUP) {
 		board.radio->tx_off();
@@ -3404,21 +3410,30 @@ static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t n
 		if (now_ms - sm->aprs_ms < APRS_KEYUP_MS) {
 			return;
 		}
-		if (!board.afsk->tx_start(sm->aprs_job.tones, sm->aprs_job.nbits, sm->aprs_job.baud, sm->aprs_job.mark_hz,
-					  sm->aprs_job.space_hz, sm->aprs_job.level)) {
+		if (sm->aprs_job.ook) {
+			if (board.ook == NULL || !board.ook->start(sm->aprs_job.tones, sm->aprs_job.nbits, sm->aprs_job.bit_us,
+								   sm->aprs_job.repeat, sm->aprs_job.pause_us)) {
+				aprs_rf_end(sm, APRS_RF_NO_AFSK, now_ms);
+				return;
+			}
+		} else if (!board.afsk->tx_start(sm->aprs_job.tones, sm->aprs_job.nbits, sm->aprs_job.baud,
+						 sm->aprs_job.mark_hz, sm->aprs_job.space_hz, sm->aprs_job.level)) {
 			aprs_rf_end(sm, APRS_RF_NO_AFSK, now_ms);
 			return;
 		}
 		sm->aprs_phase = APRS_RF_SEND;
 		sm->aprs_ms = now_ms;
 		break;
-	case APRS_RF_SEND:
-		if (!board.afsk->tx_busy()) {
+	case APRS_RF_SEND: {
+		bool busy = sm->aprs_job.ook ? (board.ook != NULL && board.ook->busy()) : board.afsk->tx_busy();
+		uint32_t limit = sm->aprs_job.send_max_ms != 0 ? sm->aprs_job.send_max_ms : APRS_SEND_MAX_MS;
+		if (!busy) {
 			aprs_rf_end(sm, APRS_RF_SENT, now_ms);
-		} else if (now_ms - sm->aprs_ms > APRS_SEND_MAX_MS) {
+		} else if (now_ms - sm->aprs_ms > limit) {
 			aprs_rf_end(sm, APRS_RF_TIMEOUT, now_ms);
 		}
 		break;
+	}
 	default:
 		break;
 	}

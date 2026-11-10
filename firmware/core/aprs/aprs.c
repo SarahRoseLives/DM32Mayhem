@@ -29,6 +29,7 @@
 #define TAIL_FLAGS	3
 #define MIN_FLAGS	8
 #define RF_TRIES	3		// a frame given up after this many failed transmissions
+#define RF_SEND_MAX_MS	6000u	// the AFSK tone buffer's longest transmission (radio_sm's limit)
 #define RF_RETRY_MS	15000u		// after a failed transmission
 #define POS_STALE_MS	60000u		// a GPS / host fix older than this doesn't count
 #define AUTO_MIN_S	30		// hard minimum between automatic beacons
@@ -94,13 +95,17 @@ static struct {
 	uint8_t taken;		// frames in the transmission under way
 	uint32_t rf_next_ms;	// no transmission before
 	uint8_t tones[TONES_BYTES];
-	struct {		// a raw AFSK burst (SAME): no AX.25 framing or callsign/amateur checks
+	struct {		// a raw AFSK or OOK burst: no AX.25 framing or callsign/amateur checks
 		bool pending, taken;
+		bool ook;
 		uint32_t hz;
 		bool narrow;
 		uint8_t level;
 		uint16_t nbits;
 		uint16_t baud, mark_hz, space_hz;
+		uint32_t bit_us, pause_us;
+		uint8_t repeat;
+		uint32_t send_max_ms;
 		uint8_t tones[TONES_BYTES];
 	} raw;
 	bool dmr_due;		// a digital beacon to send (outside the lock)
@@ -1285,6 +1290,11 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 		job->baud = a.raw.baud;
 		job->mark_hz = a.raw.mark_hz;
 		job->space_hz = a.raw.space_hz;
+		job->ook = a.raw.ook;
+		job->bit_us = a.raw.bit_us;
+		job->repeat = a.raw.repeat;
+		job->pause_us = a.raw.pause_us;
+		job->send_max_ms = a.raw.send_max_ms;
 		changed();
 		UNLOCK();
 		return true;
@@ -1334,6 +1344,8 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 	job->baud = AFSK_BAUD;
 	job->mark_hz = AFSK_MARK_HZ;
 	job->space_hz = AFSK_SPACE_HZ;
+	job->ook = false;
+	job->send_max_ms = RF_SEND_MAX_MS;
 	a.v.rf_active = true;
 	changed();
 	UNLOCK();
@@ -1615,6 +1627,43 @@ bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_
 		a.raw.baud = baud;
 		a.raw.mark_hz = mark_hz;
 		a.raw.space_hz = space_hz;
+		a.raw.ook = false;
+		a.raw.send_max_ms = RF_SEND_MAX_MS;
+		a.raw.pending = true;
+		a.raw.taken = false;
+		changed();
+	}
+	UNLOCK();
+	return ok;
+}
+
+// A raw OOK burst (the OOK TX app). The APRS RF service keys the transmitter on hz and unkeys it; board.ook switches the
+// PA at the bit rate. The bits are copied, MSB first.
+bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint32_t bit_us, uint8_t repeat,
+			  uint32_t pause_us)
+{
+	if (bits == NULL || nbits == 0 || nbits > 8u * APRS_AFSK_BURST_BYTES || bit_us < 50u || bit_us > 100000u ||
+			board.ook == NULL) {
+		return false;
+	}
+	uint32_t reps = repeat != 0 ? repeat : 1u;
+	uint32_t ms = ((uint32_t)nbits * (uint32_t)bit_us * reps + pause_us * (reps - 1u)) / 1000u + 500u;
+	if (ms > 60000u) {
+		ms = 60000u;
+	}
+	LOCK();
+	bool ok = !a.raw.pending && band_tx(hz);
+	if (ok) {
+		memcpy(a.raw.tones, bits, (size_t)((nbits + 7u) / 8u));
+		a.raw.hz = hz;
+		a.raw.narrow = false;
+		a.raw.level = 0;
+		a.raw.nbits = nbits;
+		a.raw.ook = true;
+		a.raw.bit_us = bit_us;
+		a.raw.repeat = (uint8_t)(reps > 255u ? 255u : reps);
+		a.raw.pause_us = pause_us;
+		a.raw.send_max_ms = ms;
 		a.raw.pending = true;
 		a.raw.taken = false;
 		changed();

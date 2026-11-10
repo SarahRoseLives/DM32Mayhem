@@ -27,6 +27,15 @@
 #if CONFIG_SAME_TX
 #include "same/same_tx.h"
 #endif
+#if CONFIG_OOK_TX
+#include "ook/ook.h"
+#endif
+#if CONFIG_OOK_TX || CONFIG_MDC_TX
+#include "aprs/aprs.h"
+#endif
+#if CONFIG_MDC_TX
+#include "mdc/mdc.h"
+#endif
 
 #ifndef RFOUNDRY_GIT
 #define RFOUNDRY_GIT "host"
@@ -5881,14 +5890,47 @@ static void icon_alert(int ox, int oy, int s, color_t c)
 }
 #endif
 
+#if CONFIG_OOK_TX
+static void icon_wave(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 1, 11, 3, 11, c);		// a square wave
+	iline(ox, oy, s, 3, 11, 3, 5, c);
+	iline(ox, oy, s, 3, 5, 7, 5, c);
+	iline(ox, oy, s, 7, 5, 7, 11, c);
+	iline(ox, oy, s, 7, 11, 11, 11, c);
+	iline(ox, oy, s, 11, 11, 11, 5, c);
+	iline(ox, oy, s, 11, 5, 14, 5, c);
+}
+#endif
+
+#if CONFIG_MDC_TX
+static void icon_burst(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 2, 4, 2, 12, c);		// an MDC data burst
+	iline(ox, oy, s, 5, 6, 5, 10, c);
+	iline(ox, oy, s, 8, 2, 8, 14, c);
+	iline(ox, oy, s, 11, 6, 11, 10, c);
+	iline(ox, oy, s, 14, 4, 14, 12, c);
+}
+#endif
+
 static uint16_t menu_count(uint16_t menu)
 {
 	if (menu == MENU_TOP)
 		return MT_TOP_COUNT;
+	if (menu == MENU_TX) {
+		uint16_t n = 0;
 #if CONFIG_SAME_TX
-	if (menu == MENU_TX)
-		return 1;		// SAME
+		n++;
 #endif
+#if CONFIG_OOK_TX
+		n++;
+#endif
+#if CONFIG_MDC_TX
+		n++;
+#endif
+		return n;
+	}
 	return 0;
 }
 
@@ -5899,6 +5941,14 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 #if CONFIG_SAME_TX
 	if (menu == MENU_TX && i == 0)
 		return "SAME";
+#endif
+#if CONFIG_OOK_TX
+	if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
+		return "OOK";
+#endif
+#if CONFIG_MDC_TX
+	if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
+		return "MDC";
 #endif
 	return "";
 }
@@ -5920,6 +5970,14 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		if (menu == MENU_TX && i == 0)
 			icon_alert(ox, oy, s, c);
 #endif
+#if CONFIG_OOK_TX
+		if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
+			icon_wave(ox, oy, s, c);
+#endif
+#if CONFIG_MDC_TX
+		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
+			icon_burst(ox, oy, s, c);
+#endif
 		return;
 	}
 	switch (i) {
@@ -5939,6 +5997,14 @@ static void menu_activate(uint16_t menu, uint16_t i)
 #if CONFIG_SAME_TX
 		if (menu == MENU_TX && i == 0)
 			ui_push(SCR_SAME_TX, 0);
+#endif
+#if CONFIG_OOK_TX
+		if (menu == MENU_TX && i == (CONFIG_SAME_TX ? 1 : 0))
+			ui_push(SCR_OOK_TX, 0);
+#endif
+#if CONFIG_MDC_TX
+		if (menu == MENU_TX && i == ((CONFIG_SAME_TX ? 1 : 0) + (CONFIG_OOK_TX ? 1 : 0)))
+			ui_push(SCR_MDC_TX, 0);
 #endif
 		return;
 	}
@@ -6777,6 +6843,538 @@ static const ui_scr_def_t same_screen = {
 };
 #endif	// CONFIG_SAME_TX
 
+#if CONFIG_OOK_TX
+// ======================= The OOK / de Bruijn transmitter (CONFIG_OOK_TX) =======================
+// On-off keying at a chosen frequency and bit length: a typed hex code, or a de Bruijn sequence of order N encoded as
+// 0 = 1000 / 1 = 1110 for the common PWM remotes. The radio keys through the APRS transmit service; board.ook switches
+// the PA at the bit rate.
+
+enum { OOK_ROW_FREQ, OOK_ROW_BIT, OOK_ROW_MODE, OOK_ROW_DATA, OOK_ROW_REPEAT, OOK_ROW_TX, OOK_ROW_COUNT };
+
+static uint32_t ook_hz;
+static uint32_t ook_bit_us;
+static uint8_t ook_order, ook_repeat;
+static bool ook_db_mode;
+static bool ook_loaded;
+static int8_t ook_edit = -1;
+static uint8_t ook_edit_max;
+static char ook_digits[UI_ENTRY_MAX + 1];
+static uint8_t ook_len;
+static char ook_hexbuf[17] = "0";
+static uint8_t ook_bits_buf[APRS_AFSK_BURST_BYTES];	// off the UI task stack: 512 bytes there overflowed it
+
+static void ook_freq_digits(uint32_t hz)
+{
+	ook_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		ook_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	ook_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static void ook_num_digits(uint32_t v, uint8_t max)
+{
+	char tmp[12];
+	int n = 0;
+	if (v == 0) {
+		tmp[n++] = '0';
+	} else {
+		while (v != 0 && n < (int)sizeof tmp) {
+			tmp[n++] = (char)('0' + v % 10u);
+			v /= 10u;
+		}
+	}
+	ook_len = (uint8_t)(n <= (int)max ? n : (int)max);
+	for (uint8_t i = 0; i < ook_len; i++) {
+		ook_digits[i] = tmp[n - 1 - i];
+	}
+	ook_digits[ook_len] = '\0';
+}
+
+static uint16_t ook_count(void) { return OOK_ROW_COUNT; }
+
+static void ook_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = ook_edit == (int8_t)i;
+	switch (i) {
+	case OOK_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, ook_len != 0 ? ook_digits : "type digits");
+		} else {
+			sb_freq(&b, ook_hz);
+		}
+		break;
+	case OOK_ROW_BIT:
+		str_copy(it->label, sizeof it->label, "Bit length");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, ook_len != 0 ? ook_digits : "type digits");
+		} else {
+			sb_u32(&b, ook_bit_us, 1);
+			sb_str(&b, " us");
+		}
+		break;
+	case OOK_ROW_MODE:
+		str_copy(it->label, sizeof it->label, "Mode");
+		sb_str(&b, ook_db_mode ? "De Bruijn" : "Bits");
+		break;
+	case OOK_ROW_DATA:
+		str_copy(it->label, sizeof it->label, "Data");
+		if (ook_db_mode) {
+			if (edit) {
+				it->flags |= UI_ITEM_EDIT;
+				sb_str(&b, ook_len != 0 ? ook_digits : "order");
+			} else {
+				sb_str(&b, "order ");
+				sb_u32(&b, ook_order, 1);
+			}
+		} else {
+			sb_str(&b, ook_hexbuf);
+		}
+		break;
+	case OOK_ROW_REPEAT:
+		str_copy(it->label, sizeof it->label, "Repeat");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, ook_len != 0 ? ook_digits : "type digits");
+		} else {
+			sb_u32(&b, ook_repeat, 1);
+		}
+		break;
+	case OOK_ROW_TX:
+		str_copy(it->label, sizeof it->label, "Transmit OOK");
+		sb_str(&b, ui_view()->state == RS_TX ? "Sending" : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void ook_commit(void)
+{
+	unsigned v = 0;
+	for (uint8_t i = 0; i < ook_len; i++) {
+		v = v * 10u + (unsigned)(ook_digits[i] - '0');
+	}
+	switch (ook_edit) {
+	case OOK_ROW_FREQ: {
+		uint32_t hz = ui_freq_entry_hz(ook_digits, ook_len);
+		if (hz != 0) {
+			ook_hz = hz;
+		}
+		break;
+	}
+	case OOK_ROW_BIT:
+		ook_bit_us = v < 50u ? 50u : v > 100000u ? 100000u : v;
+		break;
+	case OOK_ROW_DATA:
+		ook_order = (uint8_t)(v < 1u ? 1u : v > 10u ? 10u : v);
+		break;
+	case OOK_ROW_REPEAT:
+		ook_repeat = (uint8_t)(v < 1u ? 1u : v > 10u ? 10u : v);
+		break;
+	default:
+		break;
+	}
+}
+
+static void ook_send(void)
+{
+	uint16_t cap = (uint16_t)(8u * sizeof ook_bits_buf);
+	uint16_t nbits = ook_db_mode ? ook_debruijn(ook_order, ook_bits_buf, cap) : ook_hex(ook_hexbuf, ook_bits_buf, cap);
+	if (nbits == 0) {
+		ui_toast("Bad data");
+		return;
+	}
+	if (aprs_queue_ook_burst(ook_hz, ook_bits_buf, nbits, ook_bit_us, ook_repeat, 0)) {
+		ui_toast("Sending");
+	} else {
+		ui_toast(TR("Busy"));
+	}
+}
+
+static void ook_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case OOK_ROW_FREQ:
+		ook_edit = (int8_t)i;
+		ook_edit_max = UI_ENTRY_MAX;
+		ook_freq_digits(ook_hz);
+		break;
+	case OOK_ROW_BIT:
+		ook_edit = (int8_t)i;
+		ook_edit_max = 5;
+		ook_num_digits(ook_bit_us, 5);
+		break;
+	case OOK_ROW_MODE:
+		ook_db_mode = !ook_db_mode;
+		break;
+	case OOK_ROW_DATA:
+		if (ook_db_mode) {
+			ook_edit = (int8_t)i;
+			ook_edit_max = 2;
+			ook_num_digits(ook_order, 2);
+		} else {
+			ui_text_open(ook_hexbuf, 16);	// hex code entry
+		}
+		break;
+	case OOK_ROW_REPEAT:
+		ook_edit = (int8_t)i;
+		ook_edit_max = 2;
+		ook_num_digits(ook_repeat, 2);
+		break;
+	case OOK_ROW_TX:
+		ook_send();
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool ook_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (ook_edit < 0) {
+		return false;		// the list's own navigation and OK
+	}
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+		if (ook_edit == OOK_ROW_FREQ) {
+			(void)ui_freq_entry_digit(ook_digits, &ook_len, (char)('0' + d));
+		} else if (ook_len < ook_edit_max) {
+			ook_digits[ook_len++] = (char)('0' + d);
+			ook_digits[ook_len] = '\0';
+		}
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (ook_len != 0) {
+			ook_digits[--ook_len] = '\0';
+		} else {
+			ook_edit = -1;
+		}
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		ook_edit = -1;
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		ook_commit();
+		ook_edit = -1;
+		return true;
+	}
+	return true;			// while a value is being typed it owns the keys
+}
+
+static void ook_enter(void)
+{
+	if (!ook_loaded) {
+		ook_hz = 433920000u;
+		ook_bit_us = 1000u;	// 1 ms: the PA bias needs this long to settle (333 us pulses are weak)
+		ook_db_mode = true;
+		ook_order = 8;
+		ook_repeat = 1;
+		ook_loaded = true;
+	}
+	ook_edit = -1;
+}
+
+static const ui_scr_def_t ook_screen = {
+	.name = "ook-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("OOK TX"),
+	.hint = TRN("OK change  Back"),
+	.count = ook_count, .item = ook_item, .select = ook_select, .key = ook_key, .enter = ook_enter,
+};
+#endif	// CONFIG_OOK_TX
+
+#if CONFIG_MDC_TX
+// ======================= The MDC-1200 transmitter (CONFIG_MDC_TX) =======================
+// PTT ID / ANI and the other MDC opcodes as a 1200 baud AFSK burst through the APRS transmit service. The codeword
+// encoding is in core/mdc; this is the form: op, its argument, the unit ID and, for the two-codeword ops, the source.
+
+typedef struct {
+	const char *name;
+	uint8_t op;
+	uint8_t arg;
+} mdc_op_t;
+
+static const mdc_op_t mdc_ops[] = {
+	{ "PTT ID", 0x01, 0x00 },	{ "Emergency", 0x00, 0x00 },	{ "Radio Check", 0x63, 0x85 },
+	{ "Stun", 0x2B, 0x00 },		{ "Unstun", 0x2B, 0x0C },	{ "Call Alert", 0x81, 0x0D },
+	{ "Sel Call 1", 0x80, 0x0D },	{ "Sel Call 2", 0x82, 0x0D },	{ "Status Req", 0x22, 0x00 },
+	{ "Status Resp", 0x06, 0x00 },	{ "Rem Monitor", 0x11, 0x8A },	{ "Message", 0x07, 0x00 },
+};
+#define MDC_OP_COUNT	(sizeof(mdc_ops) / sizeof(mdc_ops[0]))
+
+enum { MDC_ROW_FREQ, MDC_ROW_OP, MDC_ROW_ARG, MDC_ROW_ID_HI, MDC_ROW_ID_LO, MDC_ROW_SRC_HI, MDC_ROW_SRC_LO,
+       MDC_ROW_TX, MDC_ROW_COUNT };
+
+static uint32_t mdc_hz;
+static uint8_t mdc_op_idx;
+static uint8_t mdc_arg, mdc_id_hi, mdc_id_lo, mdc_src_hi, mdc_src_lo;
+static bool mdc_loaded;
+static int8_t mdc_edit = -1;
+static char mdc_digits[UI_ENTRY_MAX + 1];
+static uint8_t mdc_len;
+static uint8_t mdc_bits[64];	// the encoded burst (54 bytes at most), off the UI task stack
+
+static void mdc_freq_digits(uint32_t hz)
+{
+	mdc_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		mdc_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	mdc_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static void mdc_num_digits(uint32_t v, uint8_t max)
+{
+	char tmp[8];
+	int n = 0;
+	if (v == 0) {
+		tmp[n++] = '0';
+	} else {
+		while (v != 0 && n < (int)sizeof tmp) {
+			tmp[n++] = (char)('0' + v % 10u);
+			v /= 10u;
+		}
+	}
+	mdc_len = (uint8_t)(n <= (int)max ? n : (int)max);
+	for (uint8_t i = 0; i < mdc_len; i++) {
+		mdc_digits[i] = tmp[n - 1 - i];
+	}
+	mdc_digits[mdc_len] = '\0';
+}
+
+static uint16_t mdc_count(void) { return MDC_ROW_COUNT; }
+
+static void mdc_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = mdc_edit == (int8_t)i;
+	switch (i) {
+	case MDC_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_freq(&b, mdc_hz);
+		}
+		break;
+	case MDC_ROW_OP:
+		str_copy(it->label, sizeof it->label, "Opcode");
+		sb_str(&b, mdc_ops[mdc_op_idx].name);
+		break;
+	case MDC_ROW_ARG:
+		str_copy(it->label, sizeof it->label, "Argument");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_u32(&b, mdc_arg, 1);
+		}
+		break;
+	case MDC_ROW_ID_HI:
+		str_copy(it->label, sizeof it->label, "Unit ID hi");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_u32(&b, mdc_id_hi, 1);
+		}
+		break;
+	case MDC_ROW_ID_LO:
+		str_copy(it->label, sizeof it->label, "Unit ID lo");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_u32(&b, mdc_id_lo, 1);
+		}
+		break;
+	case MDC_ROW_SRC_HI:
+		str_copy(it->label, sizeof it->label, "Source hi");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_u32(&b, mdc_src_hi, 1);
+		}
+		break;
+	case MDC_ROW_SRC_LO:
+		str_copy(it->label, sizeof it->label, "Source lo");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, mdc_len != 0 ? mdc_digits : "type digits");
+		} else {
+			sb_u32(&b, mdc_src_lo, 1);
+		}
+		break;
+	case MDC_ROW_TX:
+		str_copy(it->label, sizeof it->label, "Transmit MDC");
+		sb_str(&b, ui_view()->state == RS_TX ? "Sending" : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void mdc_commit(void)
+{
+	unsigned v = 0;
+	for (uint8_t i = 0; i < mdc_len; i++) {
+		v = v * 10u + (unsigned)(mdc_digits[i] - '0');
+	}
+	switch (mdc_edit) {
+	case MDC_ROW_FREQ: {
+		uint32_t hz = ui_freq_entry_hz(mdc_digits, mdc_len);
+		if (hz != 0) {
+			mdc_hz = hz;
+		}
+		break;
+	}
+	case MDC_ROW_ARG:
+		mdc_arg = (uint8_t)(v > 255u ? 255u : v);
+		break;
+	case MDC_ROW_ID_HI:
+		mdc_id_hi = (uint8_t)(v > 255u ? 255u : v);
+		break;
+	case MDC_ROW_ID_LO:
+		mdc_id_lo = (uint8_t)(v > 255u ? 255u : v);
+		break;
+	case MDC_ROW_SRC_HI:
+		mdc_src_hi = (uint8_t)(v > 255u ? 255u : v);
+		break;
+	case MDC_ROW_SRC_LO:
+		mdc_src_lo = (uint8_t)(v > 255u ? 255u : v);
+		break;
+	default:
+		break;
+	}
+}
+
+static void mdc_send(void)
+{
+	mdc_cfg_t c = {
+		.op = mdc_ops[mdc_op_idx].op, .arg = mdc_arg, .id_hi = mdc_id_hi, .id_lo = mdc_id_lo,
+		.src_hi = mdc_src_hi, .src_lo = mdc_src_lo,
+	};
+	uint16_t nbits = mdc_build(&c, mdc_bits, (uint16_t)(8u * sizeof mdc_bits));
+	if (nbits == 0) {
+		ui_toast("Bad data");
+		return;
+	}
+	if (aprs_queue_afsk_burst(mdc_hz, true, 42, mdc_bits, nbits, 1200, 1800, 1200)) {
+		ui_toast("Sending");
+	} else {
+		ui_toast(TR("Busy"));
+	}
+}
+
+static void mdc_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case MDC_ROW_FREQ:
+		mdc_edit = (int8_t)i;
+		mdc_freq_digits(mdc_hz);
+		break;
+	case MDC_ROW_OP:
+		mdc_op_idx = (uint8_t)((mdc_op_idx + 1u) % MDC_OP_COUNT);
+		mdc_arg = mdc_ops[mdc_op_idx].arg;
+		break;
+	case MDC_ROW_ARG:
+	case MDC_ROW_ID_HI:
+	case MDC_ROW_ID_LO:
+	case MDC_ROW_SRC_HI:
+	case MDC_ROW_SRC_LO: {
+		mdc_edit = (int8_t)i;
+		uint8_t v = i == MDC_ROW_ARG ? mdc_arg : i == MDC_ROW_ID_HI ? mdc_id_hi : i == MDC_ROW_ID_LO ? mdc_id_lo :
+			i == MDC_ROW_SRC_HI ? mdc_src_hi : mdc_src_lo;
+		mdc_num_digits(v, 3);
+		break;
+	}
+	case MDC_ROW_TX:
+		mdc_send();
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool mdc_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (mdc_edit < 0) {
+		return false;
+	}
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+		if (mdc_edit == MDC_ROW_FREQ) {
+			(void)ui_freq_entry_digit(mdc_digits, &mdc_len, (char)('0' + d));
+		} else if (mdc_len < 3) {
+			mdc_digits[mdc_len++] = (char)('0' + d);
+			mdc_digits[mdc_len] = '\0';
+		}
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (mdc_len != 0) {
+			mdc_digits[--mdc_len] = '\0';
+		} else {
+			mdc_edit = -1;
+		}
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		mdc_edit = -1;
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		mdc_commit();
+		mdc_edit = -1;
+		return true;
+	}
+	return true;
+}
+
+static void mdc_enter(void)
+{
+	if (!mdc_loaded) {
+		mdc_hz = 462562500u;
+		mdc_op_idx = 0;		// PTT ID
+		mdc_arg = mdc_ops[0].arg;
+		mdc_id_hi = 0;
+		mdc_id_lo = 1;
+		mdc_src_hi = 0;
+		mdc_src_lo = 0;
+		mdc_loaded = true;
+	}
+	mdc_edit = -1;
+}
+
+static const ui_scr_def_t mdc_screen = {
+	.name = "mdc-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("MDC TX"),
+	.hint = TRN("OK change  Back"),
+	.count = mdc_count, .item = mdc_item, .select = mdc_select, .key = mdc_key, .enter = mdc_enter,
+};
+#endif	// CONFIG_MDC_TX
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -6796,6 +7394,12 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_SAME_TX
 	[SCR_SAME_TX] = &same_screen,
+#endif
+#if CONFIG_OOK_TX
+	[SCR_OOK_TX] = &ook_screen,
+#endif
+#if CONFIG_MDC_TX
+	[SCR_MDC_TX] = &mdc_screen,
 #endif
 #if CONFIG_REF_TRIM
 	[SCR_REF_TRIM] = &trim_screen,

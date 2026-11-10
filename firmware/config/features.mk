@@ -274,10 +274,16 @@ CONFIG_BBS ?= n
 # The SAME (NOAA/EAS) header transmitter (core/same): a TX app that sends a SAME AFSK burst through the APRS AFSK
 # modem. Needs FM and APRS. The radio's own band check still applies
 CONFIG_SAME_TX ?= n
+# The OOK TX app (core/ook): on-off keying the transmitter from a bit pattern or a de Bruijn sequence. Needs FM and
+# APRS (the transmit service and the AFSK audio route it mutes)
+CONFIG_OOK_TX ?= n
+# The MDC-1200 signaling transmitter (core/mdc): PTT ID / ANI and the other MDC opcodes as 1200 baud AFSK. Needs FM
+# and APRS (the transmit service and the AFSK audio route)
+CONFIG_MDC_TX ?= n
 
 
 FEATURES := FM SUBTONE DMR DMR_PRIVACY DMR_TALKER_ALIAS DMR_GPS DMR_SMS DMR_TMS DMR_ARS DMR_LRRP DMR_SIGNALING DMR_EMERGENCY DMR_ROAMING DMR_IP_GATEWAY ZONE_SHARE DMR_UDP_COMPRESS DMR_CONFIRMED NET_TCP NET_KISS NET_HTTP NET_HTTP_GZIP NET_WEBCTL NET_RIGCTL NET_APRSIS NET_USRP MDNS TFTP TFTP_IDDB IDDB_COMPACT DMR_CONTROL_STATION SNMP SFR SFR_DUALPATH_RX SFR_CWID TASK_STACKS \
-	USB HOSTLINK USB_NETWORK NET_PPP HOTSPOT HOTSPOT_SPLIT DEBUGLINK CPS_OPENFW CPS_FAST VFO VFO_FM VFO_DMR DIAG FONT_XL FONT_AA FONT_BIG LANG_ES LANG_IT LANG_DEFAULT_ES LANG_DEFAULT_IT UI_COLOR UI_SETTINGS SCAN DUAL_WATCH BEEP FM_TX_TONES DTMF NO_PTT \
+	USB HOSTLINK USB_NETWORK NET_PPP HOTSPOT HOTSPOT_SPLIT DEBUGLINK CPS_OPENFW CPS_FAST VFO VFO_FM VFO_DMR DIAG FONT_XL FONT_AA FONT_BIG LANG_ES LANG_IT LANG_DEFAULT_ES LANG_DEFAULT_IT UI_COLOR UI_SETTINGS SCAN DUAL_WATCH BEEP FM_TX_TONES DTMF NO_PTT OOK_TX MDC_TX \
 	VOX REF_TRIM BATTERY_SAVE VIBRATE GPS AUDIO_PROBE P25_PROBE STUB_ENTRY NAND_STORAGE CRASH_LOG CRASH_SCREEN CRASH_REPORT WATCHDOG FAULT_TRACE AM_RX BCAST_FM APRS APRS_RX APRS_IGATE GPS_SKY BBS SAME_TX KEY_ASSIGN CHANNEL_LIST CHANNEL_EDIT ZONE_EDIT CONTACT_EDIT
 
 # Dependencies
@@ -459,6 +465,16 @@ endif
 ifneq ($(call feature_on,SAME_TX),)
   ifeq ($(and $(call feature_on,FM),$(call feature_on,APRS)),)
     $(error CONFIG_SAME_TX=y needs CONFIG_FM=y and CONFIG_APRS=y)
+  endif
+endif
+ifneq ($(call feature_on,OOK_TX),)
+  ifeq ($(and $(call feature_on,FM),$(call feature_on,APRS)),)
+    $(error CONFIG_OOK_TX=y needs CONFIG_FM=y and CONFIG_APRS=y)
+  endif
+endif
+ifneq ($(call feature_on,MDC_TX),)
+  ifeq ($(and $(call feature_on,FM),$(call feature_on,APRS)),)
+    $(error CONFIG_MDC_TX=y needs CONFIG_FM=y and CONFIG_APRS=y)
   endif
 endif
 ifeq ($(call feature_on,FM)$(call feature_on,DMR),)

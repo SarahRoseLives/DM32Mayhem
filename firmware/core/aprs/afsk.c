@@ -33,14 +33,24 @@ void afsk_mod_init(afsk_mod_t *m, uint32_t rate)
 {
 	memset(m, 0, sizeof(*m));
 	m->rate = rate;
+	m->baud = AFSK_BAUD;
+	m->mark_hz = AFSK_MARK_HZ;
+	m->space_hz = AFSK_SPACE_HZ;
+}
+
+void afsk_mod_tone(afsk_mod_t *m, uint32_t baud, uint32_t mark_hz, uint32_t space_hz)
+{
+	m->baud = baud;
+	m->mark_hz = mark_hz;
+	m->space_hz = space_hz;
 }
 
 size_t afsk_mod(afsk_mod_t *m, const uint8_t *tones, uint32_t nbits, int16_t amp, int16_t *out, size_t max)
 {
-	uint32_t inc_mark = phase_inc(AFSK_MARK_HZ, m->rate), inc_space = phase_inc(AFSK_SPACE_HZ, m->rate);
+	uint32_t inc_mark = phase_inc(m->mark_hz, m->rate), inc_space = phase_inc(m->space_hz, m->rate);
 	size_t n = 0;
 	while (n < max) {
-		uint32_t bit = (uint32_t)(((uint64_t)m->sample * AFSK_BAUD) / m->rate);
+		uint32_t bit = (uint32_t)(((uint64_t)m->sample * m->baud) / m->rate);
 		if (bit >= nbits) {
 			break;
 		}

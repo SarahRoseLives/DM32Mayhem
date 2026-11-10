@@ -97,6 +97,9 @@ endif
 ifeq ($(CONFIG_BBS),y)
 CORE_DIRS += core/bbs
 endif
+ifeq ($(CONFIG_SAME_TX),y)
+CORE_DIRS += core/same
+endif
 ifeq ($(CONFIG_SNMP),y)
 CORE_DIRS += core/snmp
 endif

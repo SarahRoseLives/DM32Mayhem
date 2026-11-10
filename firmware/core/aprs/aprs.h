@@ -183,6 +183,8 @@ typedef struct {
 	const uint8_t *tones;
 	uint16_t nbits;
 	bool immediate;		// a connected-mode reply (the BBS): send without the APRS carrier-sense wait
+	uint16_t baud;		// AFSK: Bell 202 for APRS, other speeds and tones for a raw burst
+	uint16_t mark_hz, space_hz;
 } aprs_rf_job_t;
 // A transmission is waiting (the radio core then checks it can start)
 bool aprs_rf_pending(void);
@@ -190,6 +192,11 @@ bool aprs_rf_pending(void);
 bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms);
 // It went out, or not: a busy channel, or a failure (aprs_rf_result_t)
 void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms);
+// A raw AFSK burst (an app's tone data, not AX.25): the bits are copied, LSB first as afsk_mod reads them, and sent
+// on hz without the callsign or amateur-band checks (still band_tx only). False: one is already waiting, or too long
+#define APRS_AFSK_BURST_BYTES	512
+bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
+			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz);
 // Seconds a pending job may wait for a clear channel before it is dropped
 #define APRS_CSMA_GIVE_UP_MS	10000u
 

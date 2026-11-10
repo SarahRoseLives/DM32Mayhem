@@ -266,6 +266,11 @@
 #ifndef CONFIG_BBS
 #define CONFIG_BBS			0
 #endif
+
+// The SAME (NOAA/EAS) header transmitter (core/same). Needs FM and APRS
+#ifndef CONFIG_SAME_TX
+#define CONFIG_SAME_TX			0
+#endif
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS
 #endif

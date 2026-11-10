@@ -94,6 +94,15 @@ static struct {
 	uint8_t taken;		// frames in the transmission under way
 	uint32_t rf_next_ms;	// no transmission before
 	uint8_t tones[TONES_BYTES];
+	struct {		// a raw AFSK burst (SAME): no AX.25 framing or callsign/amateur checks
+		bool pending, taken;
+		uint32_t hz;
+		bool narrow;
+		uint8_t level;
+		uint16_t nbits;
+		uint16_t baud, mark_hz, space_hz;
+		uint8_t tones[TONES_BYTES];
+	} raw;
 	bool dmr_due;		// a digital beacon to send (outside the lock)
 	struct {
 		bool active;
@@ -1255,7 +1264,8 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 bool aprs_rf_pending(void)
 {
 	LOCK();
-	bool p = a.qn > 0 && a.taken == 0 && a.block == APRS_OK && (int32_t)(a.now - a.rf_next_ms) >= 0;
+	bool p = (a.raw.pending && !a.raw.taken) ||
+		 (a.qn > 0 && a.taken == 0 && a.block == APRS_OK && (int32_t)(a.now - a.rf_next_ms) >= 0);
 	UNLOCK();
 	return p;
 }
@@ -1264,6 +1274,21 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 {
 	LOCK();
 	a.now = now_ms;
+	if (a.raw.pending && !a.raw.taken) {
+		a.raw.taken = true;
+		job->hz = a.raw.hz;
+		job->narrow = a.raw.narrow;
+		job->level = a.raw.level;
+		job->immediate = true;
+		job->tones = a.raw.tones;
+		job->nbits = a.raw.nbits;
+		job->baud = a.raw.baud;
+		job->mark_hz = a.raw.mark_hz;
+		job->space_hz = a.raw.space_hz;
+		changed();
+		UNLOCK();
+		return true;
+	}
 	if (a.qn == 0 || a.block != APRS_OK || a.taken != 0) {
 		UNLOCK();
 		return false;
@@ -1306,6 +1331,9 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 	job->immediate = a.q[0].kind == K_BBS;	// a BBS reply answers a frame just received: no carrier-sense wait
 	job->tones = a.tones;
 	job->nbits = (uint16_t)e.nbits;
+	job->baud = AFSK_BAUD;
+	job->mark_hz = AFSK_MARK_HZ;
+	job->space_hz = AFSK_SPACE_HZ;
 	a.v.rf_active = true;
 	changed();
 	UNLOCK();
@@ -1316,6 +1344,13 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 {
 	LOCK();
 	a.now = now_ms;
+	if (a.raw.taken) {
+		a.raw.taken = false;
+		a.raw.pending = false;
+		changed();
+		UNLOCK();
+		return;
+	}
 	if (r == APRS_RF_SENT) {
 		queue_drop(a.taken);
 		a.v.rf_sent++;
@@ -1557,6 +1592,33 @@ bool aprs_queue_raw_frame(const uint8_t *frame, size_t n)
 	}
 	LOCK();
 	bool ok = a.block == APRS_OK && queue_raw(K_BBS, frame, n);
+	UNLOCK();
+	return ok;
+}
+
+// A raw AFSK burst (SAME): no AX.25 framing, no callsign or amateur-band check, only band_tx (the radio still refuses
+// an out-of-band tx() itself). The bits are copied, LSB first as afsk_mod reads them.
+bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
+			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz)
+{
+	if (tones == NULL || nbits == 0 || nbits > 8u * APRS_AFSK_BURST_BYTES) {
+		return false;
+	}
+	LOCK();
+	bool ok = !a.raw.pending && band_tx(hz);
+	if (ok) {
+		memcpy(a.raw.tones, tones, (size_t)((nbits + 7u) / 8u));
+		a.raw.hz = hz;
+		a.raw.narrow = narrow;
+		a.raw.level = level;
+		a.raw.nbits = nbits;
+		a.raw.baud = baud;
+		a.raw.mark_hz = mark_hz;
+		a.raw.space_hz = space_hz;
+		a.raw.pending = true;
+		a.raw.taken = false;
+		changed();
+	}
 	UNLOCK();
 	return ok;
 }

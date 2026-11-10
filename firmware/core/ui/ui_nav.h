@@ -36,6 +36,7 @@ typedef enum {
 	SCR_LANGUAGE,			// Settings > Display > Language: every language, those not built dimmed
 	SCR_CP_FOREIGN,			// another firmware's codeplug: what the first edit does with it (ui_svc_codeplug_answer)
 	SCR_BBS_MSGS, SCR_BBS_MSG,	// the BBS mailbox: the list and one message (CONFIG_BBS, docs/spec/bbs.md)
+	SCR_SAME_TX,			// the SAME header transmitter (CONFIG_SAME_TX, core/same)
 	SCR_COUNT
 } ui_scr_t;
 

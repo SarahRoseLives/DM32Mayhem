@@ -28,9 +28,14 @@ typedef struct {
 	uint32_t phase;		// oscillator phase, 2^32 = one turn
 	uint32_t sample;	// samples produced
 	uint32_t bit;		// tone bits done
+	uint32_t baud;		// symbol rate (Bell 202 unless afsk_mod_tone sets another)
+	uint32_t mark_hz, space_hz;
 } afsk_mod_t;
 
 void afsk_mod_init(afsk_mod_t *m, uint32_t rate);
+// Another tone set on the same modulator: baud symbols a second, mark_hz for a 1, space_hz for a 0 (SAME: 520 baud,
+// 2083 / 1563 Hz). Non-integer samples a symbol are fine: the bit is picked by the baud/rate ratio
+void afsk_mod_tone(afsk_mod_t *m, uint32_t baud, uint32_t mark_hz, uint32_t space_hz);
 // Audio for bits [m->bit, nbits) of tones, up to max samples at amplitude amp. Returns the samples written; call
 // again until it returns 0
 size_t afsk_mod(afsk_mod_t *m, const uint8_t *tones, uint32_t nbits, int16_t amp, int16_t *out, size_t max);

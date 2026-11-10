@@ -24,6 +24,9 @@
 #if CONFIG_SFR
 #include "dmr/sfr.h"
 #endif
+#if CONFIG_SAME_TX
+#include "same/same_tx.h"
+#endif
 
 #ifndef RFOUNDRY_GIT
 #define RFOUNDRY_GIT "host"
@@ -5867,9 +5870,37 @@ static void icon_pulse(int ox, int oy, int s, color_t c)
 	iline(ox, oy, s, 11, 8, 14, 8, c);
 }
 
+#if CONFIG_SAME_TX
+static void icon_alert(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 8, 2, 2, 14, c);		// warning triangle
+	iline(ox, oy, s, 2, 14, 14, 14, c);
+	iline(ox, oy, s, 14, 14, 8, 2, c);
+	iline(ox, oy, s, 8, 6, 8, 10, c);		// its exclamation mark
+	ipx(ox, oy, s, 8, 12, c);
+}
+#endif
+
 static uint16_t menu_count(uint16_t menu)
 {
-	return menu == MENU_TOP ? MT_TOP_COUNT : 0;
+	if (menu == MENU_TOP)
+		return MT_TOP_COUNT;
+#if CONFIG_SAME_TX
+	if (menu == MENU_TX)
+		return 1;		// SAME
+#endif
+	return 0;
+}
+
+static const char *menu_tile_label(uint16_t menu, uint16_t i)
+{
+	if (menu == MENU_TOP)
+		return i < MT_TOP_COUNT ? menu_top_labels[i] : "";
+#if CONFIG_SAME_TX
+	if (menu == MENU_TX && i == 0)
+		return "SAME";
+#endif
+	return "";
 }
 
 static const char *menu_title(uint16_t menu)
@@ -5884,8 +5915,13 @@ static const char *menu_title(uint16_t menu)
 
 static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t c)
 {
-	if (menu != MENU_TOP)
+	if (menu != MENU_TOP) {
+#if CONFIG_SAME_TX
+		if (menu == MENU_TX && i == 0)
+			icon_alert(ox, oy, s, c);
+#endif
 		return;
+	}
 	switch (i) {
 	case MT_RX: icon_rx(ox, oy, s, c); break;
 	case MT_TX: icon_tx(ox, oy, s, c); break;
@@ -5899,8 +5935,13 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 
 static void menu_activate(uint16_t menu, uint16_t i)
 {
-	if (menu != MENU_TOP)
+	if (menu != MENU_TOP) {
+#if CONFIG_SAME_TX
+		if (menu == MENU_TX && i == 0)
+			ui_push(SCR_SAME_TX, 0);
+#endif
 		return;
+	}
 	switch (i) {
 	case MT_RX: ui_push(SCR_MENU, MENU_RX); break;
 	case MT_TX: ui_push(SCR_MENU, MENU_TX); break;
@@ -5959,8 +6000,8 @@ static void menu_draw(void)
 		int iy = cy + (cell_h - (ip + 4 + lab_h)) / 2;
 		int ix = cx + (cell_w - ip) / 2;
 		menu_icon(menu, (uint16_t)i, ix, iy, s, fg);
-		gfx_text(lf, cx + (cell_w - gfx_text_width(lf, menu_top_labels[i])) / 2, iy + ip + 4,
-			 menu_top_labels[i], fg);
+		const char *label = menu_tile_label(menu, (uint16_t)i);
+		gfx_text(lf, cx + (cell_w - gfx_text_width(lf, label)) / 2, iy + ip + 4, label, fg);
 	}
 	ui_draw_banner(&ui_st);
 	if (ui_st.toast != NULL)
@@ -6472,6 +6513,263 @@ static const ui_scr_def_t bbs_msg_screen = {
 };
 #endif
 
+#if CONFIG_SAME_TX
+// ======================= The SAME header transmitter (CONFIG_SAME_TX) =======================
+// A form over core/same: originator, event code, FIPS state and county, valid time, frequency, and a Transmit row.
+// OK on a value row edits it: the enums cycle, the numbers and the frequency take digits. The radio keys, sends the
+// header three times through the AFSK modem and tunes back (the APRS transmit service in the radio task).
+
+enum { SAME_ROW_ORG, SAME_ROW_EVT, SAME_ROW_STATE, SAME_ROW_COUNTY, SAME_ROW_DUR_H, SAME_ROW_DUR_M,
+       SAME_ROW_FREQ, SAME_ROW_TX, SAME_ROW_COUNT };
+
+static same_cfg_t same_cfg;
+static bool same_loaded;
+static int8_t same_edit = -1;		// the row being edited with digits, -1 none
+static bool same_sending;
+static char same_digits[UI_ENTRY_MAX + 1];
+static uint8_t same_digits_len;
+
+static void same_digits_set(unsigned v, int width)
+{
+	same_digits_len = (uint8_t)width;
+	for (int i = width - 1; i >= 0; i--) {
+		same_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	same_digits[width] = '\0';
+}
+
+static void same_freq_digits(uint32_t hz)
+{
+	same_digits_set(hz / 10u, UI_ENTRY_MAX);	// digits from 100 MHz down to 10 Hz
+}
+
+static unsigned same_parse(void)
+{
+	unsigned v = 0;
+	for (uint8_t i = 0; i < same_digits_len; i++) {
+		v = v * 10u + (unsigned)(same_digits[i] - '0');
+	}
+	return v;
+}
+
+static uint16_t same_count(void) { return SAME_ROW_COUNT; }
+
+static void same_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = same_edit == (int8_t)i;
+	switch (i) {
+	case SAME_ROW_ORG:
+		str_copy(it->label, sizeof it->label, "Originator");
+		sb_str(&b, same_org_codes[same_cfg.org < SAME_ORG_COUNT ? same_cfg.org : 0]);
+		break;
+	case SAME_ROW_EVT:
+		str_copy(it->label, sizeof it->label, "Event");
+		sb_str(&b, same_event_codes[same_cfg.event < SAME_EVENT_COUNT ? same_cfg.event : 0]);
+		break;
+	case SAME_ROW_STATE:
+		str_copy(it->label, sizeof it->label, "FIPS state");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, same_digits_len != 0 ? same_digits : "type digits");
+		} else {
+			sb_u32(&b, same_cfg.fips_state, 2);
+		}
+		break;
+	case SAME_ROW_COUNTY:
+		str_copy(it->label, sizeof it->label, "FIPS county");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, same_digits_len != 0 ? same_digits : "type digits");
+		} else {
+			sb_u32(&b, same_cfg.fips_county, 3);
+		}
+		break;
+	case SAME_ROW_DUR_H:
+		str_copy(it->label, sizeof it->label, "Duration h");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, same_digits_len != 0 ? same_digits : "type digits");
+		} else {
+			sb_u32(&b, same_cfg.dur_h, 2);
+		}
+		break;
+	case SAME_ROW_DUR_M:
+		str_copy(it->label, sizeof it->label, "Duration min");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, same_digits_len != 0 ? same_digits : "type digits");
+		} else {
+			sb_u32(&b, same_cfg.dur_m, 2);
+		}
+		break;
+	case SAME_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, same_digits_len != 0 ? same_digits : "type digits");
+		} else {
+			sb_freq(&b, same_cfg.hz);
+		}
+		break;
+	case SAME_ROW_TX:
+		str_copy(it->label, sizeof it->label, "Transmit SAME");
+		sb_str(&b, same_sending ? (ui_view()->state == RS_TX ? "Sending" : "Done") : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void same_begin_edit(uint16_t row, unsigned value, int width)
+{
+	same_edit = (int8_t)row;
+	same_digits_set(value, width);
+}
+
+static void same_commit(void)
+{
+	unsigned v = same_parse();
+	switch (same_edit) {
+	case SAME_ROW_STATE:
+		same_cfg.fips_state = (uint8_t)(v > 99 ? 99 : v);
+		break;
+	case SAME_ROW_COUNTY:
+		same_cfg.fips_county = (uint16_t)(v > 999 ? 999 : v);
+		break;
+	case SAME_ROW_DUR_H:
+		same_cfg.dur_h = (uint8_t)(v > 99 ? 99 : v);
+		break;
+	case SAME_ROW_DUR_M:
+		same_cfg.dur_m = (uint8_t)(v > 59 ? 59 : v);
+		break;
+	case SAME_ROW_FREQ: {
+		uint32_t hz = ui_freq_entry_hz(same_digits, same_digits_len);
+		if (hz != 0 && board_in_band(hz, true)) {
+			same_cfg.hz = hz;
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+static void same_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case SAME_ROW_ORG:
+		same_cfg.org = (uint8_t)((same_cfg.org + 1u) % SAME_ORG_COUNT);
+		break;
+	case SAME_ROW_EVT:
+		same_cfg.event = (uint8_t)((same_cfg.event + 1u) % SAME_EVENT_COUNT);
+		break;
+	case SAME_ROW_STATE:
+		same_begin_edit(i, same_cfg.fips_state, 2);
+		break;
+	case SAME_ROW_COUNTY:
+		same_begin_edit(i, same_cfg.fips_county, 3);
+		break;
+	case SAME_ROW_DUR_H:
+		same_begin_edit(i, same_cfg.dur_h, 2);
+		break;
+	case SAME_ROW_DUR_M:
+		same_begin_edit(i, same_cfg.dur_m, 2);
+		break;
+	case SAME_ROW_FREQ:
+		same_edit = (int8_t)i;
+		same_freq_digits(same_cfg.hz);
+		break;
+	case SAME_ROW_TX:
+		if (same_tx_send(&same_cfg)) {
+			same_sending = true;
+			ui_toast(TR("Sending"));
+		} else {
+			ui_toast(TR("Busy"));
+		}
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool same_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (same_edit < 0) {
+		return false;		// the list's own navigation and OK
+	}
+	if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+		if (same_edit == SAME_ROW_FREQ) {
+			(void)ui_freq_entry_digit(same_digits, &same_digits_len, (char)('0' + d));
+		} else if (same_digits_len < 3) {
+			same_digits[same_digits_len++] = (char)('0' + d);
+			same_digits[same_digits_len] = '\0';
+		}
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (same_digits_len != 0) {
+			same_digits[--same_digits_len] = '\0';
+		} else {
+			same_edit = -1;
+		}
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		same_edit = -1;
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		same_commit();
+		same_edit = -1;
+		return true;
+	}
+	return true;			// while a value is being typed it owns the keys
+}
+
+static void same_enter(void)
+{
+	if (!same_loaded) {
+		same_cfg_default(&same_cfg);
+		same_loaded = true;
+	}
+	same_edit = -1;
+	same_sending = false;
+}
+
+static const char *same_body(void)
+{
+	static char t[24];
+	sbuf_t b;
+	sb_init(&b, t, sizeof t);
+	sb_str(&b, same_org_codes[same_cfg.org < SAME_ORG_COUNT ? same_cfg.org : 0]);
+	sb_chr(&b, '-');
+	sb_str(&b, same_event_codes[same_cfg.event < SAME_EVENT_COUNT ? same_cfg.event : 0]);
+	sb_chr(&b, '-');
+	sb_u32(&b, same_cfg.fips_state, 2);
+	sb_chr(&b, '0');
+	sb_u32(&b, same_cfg.fips_county, 3);
+	sb_chr(&b, '+');
+	sb_u32(&b, same_cfg.dur_h, 2);
+	sb_u32(&b, same_cfg.dur_m, 2);
+	return t;
+}
+
+static const ui_scr_def_t same_screen = {
+	.name = "same-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("SAME TX"),
+	.hint = TRN("OK edit  Back"),
+	.count = same_count, .item = same_item, .select = same_select, .key = same_key, .enter = same_enter,
+	.body = same_body,
+};
+#endif	// CONFIG_SAME_TX
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -6488,6 +6786,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #if CONFIG_BBS
 	[SCR_MENU] = &menu_screen,
 	[SCR_BBS_MSGS] = &bbs_msgs_screen, [SCR_BBS_MSG] = &bbs_msg_screen,
+#endif
+#if CONFIG_SAME_TX
+	[SCR_SAME_TX] = &same_screen,
 #endif
 #if CONFIG_REF_TRIM
 	[SCR_REF_TRIM] = &trim_screen,

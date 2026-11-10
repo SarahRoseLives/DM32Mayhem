@@ -101,8 +101,8 @@ static bool route(bool on)
 
 static bool tx_start(const uint8_t *t, uint16_t n, uint16_t baud, uint16_t mark, uint16_t space, uint8_t level)
 {
-	if (modem == NULL || busy || n == 0 || baud != AFSK_BAUD || mark != AFSK_MARK_HZ || space != AFSK_SPACE_HZ) {
-		return false;	// afsk_mod makes Bell 202 only
+	if (modem == NULL || busy || n == 0) {
+		return false;
 	}
 	if (!route(true)) {
 		return false;
@@ -112,6 +112,7 @@ static bool tx_start(const uint8_t *t, uint16_t n, uint16_t baud, uint16_t mark,
 	int32_t a = (int32_t)level * hooks->amp_per_level;
 	amp = (int16_t)(a > 32000 ? 32000 : a);
 	afsk_mod_init(&mod, 8000u);
+	afsk_mod_tone(&mod, baud, mark, space);
 	done = false;
 	pending = false;
 	drain = 0;

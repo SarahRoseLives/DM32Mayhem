@@ -3404,8 +3404,8 @@ static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t n
 		if (now_ms - sm->aprs_ms < APRS_KEYUP_MS) {
 			return;
 		}
-		if (!board.afsk->tx_start(sm->aprs_job.tones, sm->aprs_job.nbits, AFSK_BAUD, AFSK_MARK_HZ, AFSK_SPACE_HZ,
-					  sm->aprs_job.level)) {
+		if (!board.afsk->tx_start(sm->aprs_job.tones, sm->aprs_job.nbits, sm->aprs_job.baud, sm->aprs_job.mark_hz,
+					  sm->aprs_job.space_hz, sm->aprs_job.level)) {
 			aprs_rf_end(sm, APRS_RF_NO_AFSK, now_ms);
 			return;
 		}

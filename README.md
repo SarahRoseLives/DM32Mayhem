@@ -1,80 +1,96 @@
 <!-- SPDX-License-Identifier: MIT -->
 
-# DM32BBS
+# DM32Mayhem
 
-A **standalone packet-radio BBS that runs on the Baofeng DM-32UV handheld** — no PC, no hotspot, no internet. The radio
-itself answers AX.25 connected-mode callers at 1200 baud, keeps a mailbox in its data flash, identifies in CW on a
-schedule, and is controlled entirely from its own keypad.
+A **HackRF-portapak-inspired firmware for the Baofeng DM-32UV**, built on the RadioFoundry tree. The radio boots into a
+two-by-three app grid, and each app is a small transmitter with its own panel. Transmission is app-driven: there is no
+manual PTT in this build.
 
-![The Baofeng DM-32UV running the DM32BBS panel](docs/dm32-bbs.png)
+<p align="center">
+<img src="docs/screenshots/home.png" width="240" alt="The DM-32UV home menu">
+<img src="docs/screenshots/tx-menu.png" width="240" alt="The TX app menu">
+</p>
 
-*The photo shows the sysop's own callsigns; the build defaults to `N0CALL`.*
+*Home (RX, TX, TRX, About, Config, Diagnostics) and the TX app grid. RX and TRX are the same grid, ready for the
+receive and transceive apps.*
 
-## What it does
+## Applications
 
-- **On-radio BBS panel** is the whole user interface: Start/Stop, operating frequency, bandwidth, callsign/SSID, BBS
-  name, sysop, TX delay, start-at-power-on, CW ID interval, and the mailbox. No PC needed to configure or use it.
-- **Connected-mode AX.25 server** (`SABM`/`UA`, I/S frames, RR/REJ, T1/N2) at 1200 baud Bell 202, using the radio's
-  APRS modem.
-- **Mailbox in the data flash** (512-byte records, CRC-checked, crash-safe): list, read, send, kill, clear. A caller
-  connects, types `S` and leaves a message; the sysop reads it on the radio.
-- **Channel lock while running**: PTT, channel/zone/VFO changes, scan and quick settings are blocked, so the BBS keeps
-  the channel. Stop releases it.
-- **CW identification** every 5/10/15/30 minutes (or off), keyed in Morse with the configured callsign when the channel
-  is idle.
-- **Terminal client** for the other radio's KISS-over-TCP TNC (see `terminal/`).
+| App | What it sends |
+|---|---|
+| **SAME TX** | NOAA/EAS SAME headers over FM AFSK |
+| **OOK TX** | On-off keyed PA: a hex code or a de Bruijn sequence |
+| **MDC-1200 TX** | Motorola MDC-1200 ANI/PTT ID and the other opcodes |
+| **P25 CC TX** | A P25 Phase 1 control channel |
+| **APRS TX** | APRS status, message and position packets |
+| **RTTY TX** | ITA2/Baudot RTTY |
 
-## Using the radio
+### SAME TX
 
-The radio boots straight to the BBS panel:
+![SAME TX](docs/screenshots/same-tx.png)
 
-```
-IDLE FM                         98%
-                 BBS
-Running  N0CALL  145.100
-0 msg
-1 Stop BBS            Running
-2 Frequency           145.100
-3 Bandwidth           25 kHz
-4 Callsign            N0CALL
-5 SSID                0
-6 BBS name            DM32BBS
-7 Sysop               N0CALL
-8 TX delay            300 ms
-9 Start at power on   Off
-CW ID                 Off
-Messages              0 messages
-OK change  hold OK clear  Back
-```
+The standard SAME header (`ZCZC-ORG-EEE-PSSCCC+TTTT-JJJHHMM-LLLLLLLL-`, three repeats, 520.83 baud AFSK) built from an
+originator, event, FIPS state and county, valid time, station ID and frequency. The issue time comes from the radio's
+GPS when it has one, otherwise the standard placeholder.
 
-Select a row with OK. Frequency is typed on the digits and is band-checked; callsign/name/sysop use the keypad text
-entry. **Start BBS** tunes the VFO to the configured frequency and locks the radio; **Stop BBS** releases it. While
-running, you can still edit the frequency (it retunes), read the mailbox, and stop it.
+### OOK TX
 
-CW ID: pick off, 5, 10, 15 or 30 minutes. The first ID follows shortly after Start; then one per interval while the
-channel is idle.
+![OOK TX](docs/screenshots/ook-tx.png)
 
-## Client side
+On-off keying by switching the PA drive at the bit rate. A hex code or the binary de Bruijn sequence, encoded as the
+common PWM remotes expect (`0 = 1000`, `1 = 1110`), with frequency, bit length, repeats and de Bruijn order. One
+millisecond is the default bit length: shorter pulses do not let the PA bias settle.
 
-The BBS was tested from a second radio with a KISS-over-TCP TNC:
+### MDC-1200 TX
 
-```
-python3 terminal/terminal.py                # N0CALL-1 -> N0CALL on 145.100, 192.168.1.85:8001
-```
+![MDC-1200 TX](docs/screenshots/mdc-tx.png)
 
-Any AX.25 terminal works (`qttermtcp` was used too): connect `N0CALL-1` to `N0CALL`, then `H`, `L`, `R n`, `S`, `N`,
-`Q`. Messages sent from the terminal appear on the radio's mailbox screen and persist across reboots.
+PTT ID/ANI, emergency, radio check, stun and unstun, call alert, sel call 1/2, status request/response, remote monitor
+and message. The PDU carries the CRC, convolutional code and interleave, NRZI-encoded, as 1200 baud AFSK (mark
+1800 Hz, space 1200 Hz).
+
+### P25 CC TX
+
+![P25 CC TX](docs/screenshots/p25-cc.png)
+
+A P25 Phase 1 control channel: frame sync, BCH NID, and rotating IDEN_UP, NET_STS, RFSS_STS and group voice grant
+TSBKs. The site is set by NAC, WACN, system ID, RFSS, site, talkgroup and voice channel; the bytes go through the
+modem's physical-layer 4FSK transmitter.
+
+### APRS TX
+
+![APRS TX](docs/screenshots/aprs-tx.png)
+
+Compose and send an APRS status, a text message to a callsign, or the current position. The APRS engine frames the
+AX.25, keys, retries and tunes; the app shows the radio's APRS callsign, frequency and why a send is blocked.
+
+### RTTY TX
+
+![RTTY TX](docs/screenshots/rtty-tx.png)
+
+ITA2/Baudot RTTY at 45.45 or 50 baud, with selectable mark and shift (space = mark + shift), a repeated message and a
+long text field, sent through the AFSK path.
+
+## How the transmissions work
+
+- **AFSK** (SAME, MDC-1200, RTTY) through the HR_C7000 FM modulator at 8 kHz PCM.
+- **OOK** by switching the PA drive (DAC B) at the bit rate.
+- **P25** through the HR_C7000 physical-layer 4FSK transmitter in 36-byte blocks.
+- **APRS** through the existing APRS engine.
+
+The radio task owns the transmitter: each app queues a job and the APRS/transmit service keys, tunes and unkeys. The
+long text editor on the apps holds 128 characters and shows the tail while typing.
 
 ## Build and flash
 
-The firmware is a lean, vendored RadioFoundry build (FM + the HR_C7000 modem glue + APRS RF path + the BBS). The
-default full RadioFoundry build is untouched and still builds.
+The lean DM32 app firmware is built by `tools/build-bbs.sh` (the historical name; it now builds the app grid):
 
 ```
 tools/build-bbs.sh                          # -> firmware/build/bbs/rfoundry_dm32.bin
 ```
 
-Flash with the runtime stub (radio on), or the bootloader update mode (PTT + SK1 at power-on):
+The image has no DMR voice codec slot (`codecs/` is empty here); FM and packet are unaffected. Flash with the runtime
+stub (radio on):
 
 ```
 cd firmware
@@ -83,20 +99,27 @@ python3 stub/stubtool.py /dev/ttyUSB0 --board dm32 --rfoundry-enter \
 python3 stub/stubtool.py /dev/ttyUSB0 --attach --boot reset
 ```
 
-The image has no DMR voice codec slot; FM and packet are unaffected (DMR voice is not needed for the BBS).
+The full RadioFoundry build (`make BOARD=dm32`) is untouched and still builds.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `firmware/` | vendored RadioFoundry tree + `core/bbs/` (config, server, store, flash, radio glue) and the BBS UI |
-| `firmware/docs/spec/bbs.md` | the BBS spec (protocol, UI, store, CW ID) |
-| `terminal/` | KISS TCP AX.25 terminal client for the other radio |
-| `tools/build-bbs.sh` | the lean DM32 BBS build |
-| `docs/dm32-bbs.png` | the photo above |
+| `firmware/` | the vendored RadioFoundry tree |
+| `firmware/core/bbs/` | the original packet BBS (kept, no longer the UI) |
+| `firmware/core/same/` | SAME header encoder |
+| `firmware/core/ook/` | OOK bit patterns and the de Bruijn sequence |
+| `firmware/core/mdc/` | MDC-1200 encoder |
+| `firmware/core/p25cc/` | P25 control channel frames |
+| `firmware/core/rtty/` | ITA2/Baudot encoder |
+| `firmware/core/ui/ui_menus.c` | the app grid and the app screens |
+| `docs/screenshots/` | the screenshots in this README |
+| `terminal/` | KISS-over-TCP AX.25 client (needs a build with the network services) |
+| `tools/build-bbs.sh` | the app firmware build |
 
 ## Limits
 
-1200 baud Bell 202 only; one mailbox per radio; two callers at a time; no forwarding/NTS; the settings menu, Home and
-the ham-radio screens are intentionally not offered in this BBS build. Radio voice settings (volume, power, backlight)
-still work; display/language settings keep their stored values.
+- FM and packet only in this build: no AMBE codec, so no DMR voice.
+- No manual PTT; apps key the radio themselves.
+- OOK is limited by the PA settling time, about 1 ms per bit.
+- RX and TRX are empty grids; the receive apps are not built yet.

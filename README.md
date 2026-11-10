@@ -6,6 +6,9 @@ A **HackRF-portapak-inspired firmware for the Baofeng DM-32UV**, built on the Ra
 two-by-three app grid, and each app is a small transmitter with its own panel. Transmission is app-driven: there is no
 manual PTT in this build.
 
+**Web flasher:** [dm32mayhem.com](https://dm32mayhem.com/) — back up, install and restore the firmware over the
+programming cable in Chrome or Edge.
+
 <p align="center">
 <img src="docs/screenshots/home.png" width="240" alt="The DM-32UV home menu">
 <img src="docs/screenshots/tx-menu.png" width="240" alt="The TX app menu">
@@ -94,6 +97,13 @@ The radio task owns the transmitter: each app queues a job and the APRS/transmit
 long text editor on the apps holds 128 characters and shows the tail while typing. The boot gate (`CONFIG_BOOT_GATE`)
 runs in the UI task before it enters the app grid: it generates the code, consumes every key until the code matches,
 and keeps auto power off from firing while it waits.
+
+## Flash from the browser
+
+Open **[dm32mayhem.com](https://dm32mayhem.com/)** in Chrome or Edge on a desktop computer, or Chrome on Android, and
+connect the radio's programming cable. **Install** backs up the radio first, then writes the codec-less DM32Mayhem
+image, merging the radio's own DMR voice codec. **Back Up** and **Restore** use the same backup bundle; **Radio Stuck
+in Update Mode** recovers a radio left in its loader.
 
 ## Build and flash
 

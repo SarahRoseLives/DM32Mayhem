@@ -266,6 +266,12 @@
 #define CONFIG_APRS			CONFIG_FM
 #endif
 
+// The boot acceptance gate: after the splash, a random six-digit code and the responsibility notice, and no app
+// until the code is typed (core/ui/ui_app.c, core/ui/ui_screens.c)
+#ifndef CONFIG_BOOT_GATE
+#define CONFIG_BOOT_GATE		0
+#endif
+
 // The connected-mode packet BBS (core/bbs). Needs FM and APRS, whose modem and transmit service it shares
 #ifndef CONFIG_BBS
 #define CONFIG_BBS			0

@@ -796,6 +796,83 @@ void ui_draw_splash(const char *board_name, const char *version, const char *lin
 	gfx_text(ff, (w - gfx_text_width(ff, foot)) / 2, foot_y, foot, ui_col.dim);
 }
 
+#if CONFIG_BOOT_GATE
+// The boot gate: the notice, the code the radio generated this boot, the six boxes the user types it into. Laid out
+// from the display size like the other screens, so it stays whole from 128x64 up.
+void ui_draw_boot_gate(const char *code, const char *entry, uint8_t len, bool wrong)
+{
+	int w = gfx_width();
+	const ui_layout_t *L = &ui_layout;
+	bool compact = gfx_height() < UI_TALL_PX;
+	const font_t *tf = compact ? L->medium : L->large;
+	const font_t *sf = compact ? L->tiny : L->small;
+	const font_t *df = compact ? L->medium : L->large;
+	int margin = w >= 200 ? 6 : 2;
+	int gap = compact ? 2 : 8;
+
+	gfx_clear(ui_col.bg);
+
+	const char *title = "DM32Mayhem";
+	if (gfx_text_width(tf, title) > w - 2 * margin)
+		tf = L->medium;
+	if (gfx_text_width(tf, title) > w - 2 * margin)
+		tf = L->small;
+	int y = L->strip_h + gap;
+	gfx_text(tf, (w - gfx_text_width(tf, title)) / 2, y, title, ui_col.fg);
+	y += tf->h + gap;
+
+	char lines[5][64];
+	const char *notice = TR("You are responsible for your use of this radio. The developer takes no responsibility.");
+	int nl = wrap_lines(sf, notice, w - 2 * margin, compact ? 4 : 5, lines, false);
+	for (int i = 0; i < nl; i++, y += sf->h)
+		gfx_text(sf, margin, y, lines[i], ui_col.dim);
+	y += gap;
+
+	const char *prompt = wrong ? TR("Wrong code. Try again.") : TR("Type this code to continue");
+	char pfit[64];
+	if (gfx_text_width(sf, prompt) > w - 2 * margin) {
+		gfx_text_fit(sf, prompt, w - 2 * margin, pfit, sizeof pfit);
+		prompt = pfit;
+	}
+	gfx_text(sf, (w - gfx_text_width(sf, prompt)) / 2, y, prompt, wrong ? ui_col.warn : ui_col.fg);
+	y += sf->h + gap;
+
+	int dw = gfx_text_width(df, "0");
+	int bw = dw + (compact ? 4 : 10);
+	int bh = df->h + (compact ? 4 : 10);
+	int bgap = (w - 2 * margin - 6 * bw) / 5;
+	if (bgap < 2)
+		bgap = 2;
+	int bx = (w - (6 * bw + 5 * bgap)) / 2;
+
+	if (!compact) {
+		gfx_text(L->tiny, bx, y, "CODE", ui_col.dim);
+		y += L->tiny->h + 1;
+	}
+	for (int i = 0; i < 6; i++) {
+		int x = bx + i * (bw + bgap);
+		char d[2] = { code[i], 0 };
+		gfx_fill(x, y, bw, bh, ui_col.focus);
+		gfx_text(df, x + (bw - dw) / 2, y + (bh - df->h) / 2, d, ui_col.focus_fg);
+	}
+	y += bh + (compact ? 2 : gap);
+
+	if (!compact) {
+		gfx_text(L->tiny, bx, y, "ENTER", ui_col.dim);
+		y += L->tiny->h + 1;
+	}
+	for (int i = 0; i < 6; i++) {
+		int x = bx + i * (bw + bgap);
+		gfx_rect(x, y, bw, bh, i == len && !wrong ? ui_col.focus : ui_col.line);
+		if (i < len) {
+			char d[2] = { entry[i], 0 };
+			gfx_text(df, x + (bw - dw) / 2, y + (bh - df->h) / 2, d, ui_col.fg);
+		}
+	}
+	ui_draw_hint(TR("Type the code  Back delete"), false);
+}
+#endif
+
 // --- Home ---
 
 #if CONFIG_DMR

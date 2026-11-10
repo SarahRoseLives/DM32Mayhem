@@ -14,6 +14,7 @@
 // (information-architecture.md 7.5).
 #include <string.h>
 #include "board.h"
+#include "hal_time.h"
 #include "ui_app.h"
 #include "ui_nav.h"
 #include "ui_svc.h"
@@ -75,6 +76,13 @@ static bool batt_warned;		// the low battery banner was shown at this level (cle
 static uint32_t batt_warned_ms;
 static uint32_t hear_all_key;		// the channel hear all by default last latched on (vfo, zone, position, mode)
 static char emerg_name[CODEPLUG_NAME_LEN + 1];
+#if CONFIG_BOOT_GATE
+static bool gate_locked;		// after every boot: no app until the code is typed
+static char gate_code[7];		// the six digits generated for this boot
+static char gate_entry[7];		// what the user has typed (digits)
+static uint8_t gate_len;
+static bool gate_wrong;			// the last six digits did not match
+#endif
 
 // --- small helpers ---
 
@@ -91,6 +99,76 @@ void ui_toast(const char *text)
 	toast_until = now + TOAST_MS;
 	dirty = true;
 }
+
+#if CONFIG_BOOT_GATE
+// The boot gate's code: six digits from a seed of what differs between boots (the free-running microsecond clock and
+// the battery reading) and what differs between radios (the chip UID). Not a secret: the notice and the code are on
+// the panel, so it is an acknowledgement, not a lock against someone else.
+static uint32_t gate_mix(uint32_t x)
+{
+	x ^= x >> 16;
+	x *= 0x7FEB352Du;
+	x ^= x >> 15;
+	x *= 0x846CA68Bu;
+	x ^= x >> 16;
+	return x;
+}
+
+static uint32_t gate_seed(void)
+{
+	uint32_t s = gate_mix(hal_micros()) ^ gate_mix(hal_millis()) ^ 0x9E3779B9u;
+	hal_chip_t chip;
+	if (board.system != NULL && board.system->chip != NULL && board.system->chip(&chip))
+		s ^= gate_mix(chip.uid[0] ^ chip.uid[1] ^ chip.uid[2]);
+	if (board_has_battery() && board.power != NULL && board.power->battery_mv != NULL)
+		s ^= gate_mix((uint32_t)board.power->battery_mv());
+	return s;
+}
+
+static void gate_new_code(void)
+{
+	uint32_t s = gate_seed();
+	for (uint8_t i = 0; i < 6; i++) {
+		s = gate_mix(s + 0x9E3779B9u + i);
+		gate_code[i] = (char)('0' + s % 10u);
+	}
+	gate_code[6] = 0;
+	gate_entry[0] = 0;
+	gate_len = 0;
+	gate_wrong = false;
+	gate_locked = true;
+}
+
+static void gate_key(const input_event_t *ev)
+{
+	if (ev->gesture != GESTURE_PRESS && ev->gesture != GESTURE_LONG)
+		return;
+	if (ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9) {
+		if (gate_len >= 6)
+			return;
+		gate_entry[gate_len++] = (char)('0' + (ev->action - ACT_DIGIT_0));
+		gate_entry[gate_len] = 0;
+		gate_wrong = false;
+		ui_svc_beep(UI_BEEP_KEY);
+		if (gate_len == 6) {
+			if (memcmp(gate_entry, gate_code, 6) == 0) {
+				gate_locked = false;
+				ui_toast(TR("Code accepted. Use the radio responsibly."));
+			} else {
+				gate_wrong = true;
+				gate_len = 0;
+				gate_entry[0] = 0;
+				ui_svc_beep(UI_BEEP_ERROR);
+			}
+		}
+	} else if (ev->action == ACT_BACK || ev->action == ACT_NAV_LEFT) {
+		if (gate_len > 0) {
+			gate_entry[--gate_len] = 0;
+			gate_wrong = false;
+		}
+	}
+}
+#endif
 
 bool ui_has_action(uint8_t action)
 {
@@ -1829,6 +1907,9 @@ void ui_app_init(void)
 #if CONFIG_CRASH_SCREEN
 	ui_crash_reset();
 #endif
+#if CONFIG_BOOT_GATE
+	gate_new_code();
+#endif
 	dirty = true;
 }
 
@@ -1925,6 +2006,12 @@ void ui_app_key(const input_event_t *ev)
 	last_key_ms = now;
 	last_use_ms = now;
 	off_warned = false;
+#if CONFIG_BOOT_GATE
+	if (gate_locked) {
+		gate_key(ev);
+		return;
+	}
+#endif
 	if (ev->action == ACT_PTT && ev->gesture == GESTURE_DOWN && ui_st.locked && !ui_st.ptt_locked) {
 		// The input layer kept this press from the radio (Settings > Privacy > PTT when locked)
 		ui_svc_beep(UI_BEEP_ERROR);
@@ -2224,6 +2311,12 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 #endif
 	now = now_ms;
 	ui_st.now_ms = now_ms;
+#if CONFIG_BOOT_GATE
+	if (gate_locked) {
+		last_use_ms = now_ms;	// typing the code is use: no auto power off while the gate is up
+		return false;
+	}
+#endif
 	ui_svc_poll();
 	ui_svc_keys_poll();
 #if CONFIG_BBS
@@ -2455,6 +2548,12 @@ void ui_app_draw(void)
 
 static void draw_screen(void)
 {
+#if CONFIG_BOOT_GATE
+	if (gate_locked) {
+		ui_draw_boot_gate(gate_code, gate_entry, gate_len, gate_wrong);
+		return;
+	}
+#endif
 #if CONFIG_HOTSPOT
 	if (in_hotspot() && !(CONFIG_DIAG && hs_diag)) {
 		hotspot_get_view(&hs_view);
@@ -2491,11 +2590,18 @@ const char *ui_app_focus_label(void)
 void ui_app_status(ui_app_status_t *s)
 {
 	const ui_scr_def_t *d = ui_scr[stack[sp].scr];
-	s->screen = d->name;
-#if CONFIG_HOTSPOT
-	if (in_hotspot())
-		s->screen = "hotspot";
+#if CONFIG_BOOT_GATE
+	if (gate_locked) {
+		s->screen = "gate";
+	} else
 #endif
+	{
+		s->screen = d->name;
+#if CONFIG_HOTSPOT
+		if (in_hotspot())
+			s->screen = "hotspot";
+#endif
+	}
 	s->depth = sp;
 	s->focus = stack[sp].scr == SCR_QUICK ? ui_st.quick_focus : stack[sp].focus;
 	s->count = (d->flags & SF_LIST) && d->count != NULL ? d->count() : 0;

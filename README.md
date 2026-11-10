@@ -14,6 +14,18 @@ manual PTT in this build.
 *Home (RX, TX, TRX, About, Config, Diagnostics) and the TX app grid. RX and TRX are the same grid, ready for the
 receive and transceive apps.*
 
+## Boot gate
+
+Every power-on opens with the responsibility notice and a six-digit code generated for that boot. No app, key or
+transmitter is available until the code is typed; Back deletes a digit, and a wrong code clears the entry and asks
+again. It is an acknowledgement, not a security lock: the code is on the panel.
+
+<p align="center">
+<img src="docs/screenshots/boot-gate.png" width="240" alt="The boot gate">
+<img src="docs/screenshots/boot-gate-entry.png" width="240" alt="Typing the code">
+<img src="docs/screenshots/boot-gate-wrong.png" width="240" alt="Wrong code">
+</p>
+
 ## Applications
 
 | App | What it sends |
@@ -79,7 +91,9 @@ long text field, sent through the AFSK path.
 - **APRS** through the existing APRS engine.
 
 The radio task owns the transmitter: each app queues a job and the APRS/transmit service keys, tunes and unkeys. The
-long text editor on the apps holds 128 characters and shows the tail while typing.
+long text editor on the apps holds 128 characters and shows the tail while typing. The boot gate (`CONFIG_BOOT_GATE`)
+runs in the UI task before it enters the app grid: it generates the code, consumes every key until the code matches,
+and keeps auto power off from firing while it waits.
 
 ## Build and flash
 
@@ -121,5 +135,6 @@ The full RadioFoundry build (`make BOARD=dm32`) is untouched and still builds.
 
 - FM and packet only in this build: no AMBE codec, so no DMR voice.
 - No manual PTT; apps key the radio themselves.
+- The boot gate is an acknowledgement, not encryption or access control: the code is shown on the panel.
 - OOK is limited by the PA settling time, about 1 ms per bit.
 - RX and TRX are empty grids; the receive apps are not built yet.

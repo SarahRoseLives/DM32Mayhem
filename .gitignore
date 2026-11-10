@@ -1,0 +1,16 @@
+# Build output and caches
+firmware/build/
+firmware/tests/host/out/
+firmware/tests/host/gen/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Built test binaries (the sources are *.c)
+firmware/tests/host/*Test
+
+# Codec, stock firmware and dumps are never committed (firmware/.gitignore also covers these)
+firmware/codecs/*.bin
+firmware/codecs/*.codec
+*.dfu
+*.ambe

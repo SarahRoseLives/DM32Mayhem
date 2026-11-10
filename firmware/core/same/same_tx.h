@@ -20,6 +20,7 @@ typedef struct {
 	uint8_t fips_state;	// 00..99
 	uint16_t fips_county;	// 000..999
 	uint8_t dur_h, dur_m;	// valid time, hours and minutes
+	char station[9];	// station ID, 8 characters (space padded when sent)
 	uint32_t hz;		// transmit frequency
 	bool narrow;		// 12.5 kHz (else 25 kHz)
 	uint8_t level;		// AFSK audio level 0..100 (50 is about 3 kHz deviation)

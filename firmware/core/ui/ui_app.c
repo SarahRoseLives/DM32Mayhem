@@ -2113,15 +2113,11 @@ void ui_app_key(const input_event_t *ev)
 		dirty = true;
 		return;
 	}
-	// QUICK opens quick settings from any screen; BACK returns to where the user was
+	// QUICK (the * key) opens quick settings from any screen; BACK returns to where the user was
 	const ui_scr_def_t *d = ui_scr[stack[sp].scr];
 	if (ev->action == ACT_QUICK && ev->gesture == GESTURE_PRESS && stack[sp].scr != SCR_QUICK &&
 			stack[sp].scr != SCR_DIAG && stack[sp].scr != SCR_HOME && !typing) {
-#if CONFIG_BBS
-		ui_toast(TR("Quick settings are not in this build"));
-#else
 		ui_push(SCR_QUICK, 0);
-#endif
 		return;
 	}
 	if (d->key != NULL && d->key(ev))

@@ -210,6 +210,10 @@
 #ifndef CONFIG_DTMF
 #define CONFIG_DTMF			CONFIG_FM
 #endif
+// No manual PTT: apps key the radio themselves (the mic key does not)
+#ifndef CONFIG_NO_PTT
+#define CONFIG_NO_PTT			0
+#endif
 #ifndef CONFIG_VOX
 #define CONFIG_VOX			CONFIG_FM
 #endif

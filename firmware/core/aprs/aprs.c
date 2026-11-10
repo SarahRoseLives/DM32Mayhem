@@ -1676,6 +1676,12 @@ void aprs_nmea(const char *s, size_t n, bool gps, uint32_t now_ms)
 			a.gps_hdop10 = x.hdop10;
 		}
 	}
+	// The date and time first: an RMC without a position fix still carries them once the receiver has the almanac
+	// (the SAME app reads them, and a fix can be minutes away indoors)
+	if (x.kind == NMEA_RMC && x.date != 0 && x.utc_hms != 0) {
+		f->utc_hms = x.utc_hms;
+		f->date = x.date;
+	}
 	if (!x.fix) {
 		f->valid = false;
 	} else {
@@ -1726,6 +1732,7 @@ bool aprs_gps(aprs_gps_t *out, uint32_t now_ms)
 		out->speed_kmh = a.gps.speed_kmh;
 		out->course = a.gps.course;
 		out->utc_hms = a.gps.utc_hms;
+		out->date = a.gps.date;
 #if CONFIG_GPS_SKY
 		out->mode = a.sky.mode;
 		out->in_view = a.sky.n;

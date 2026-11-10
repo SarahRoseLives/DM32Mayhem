@@ -10,6 +10,8 @@
 #include "same/same_tx.h"
 #include "aprs/aprs.h"
 #include "board.h"
+#include "hal_time.h"
+#include "debuglink/dlog.h"
 
 const char *const same_org_codes[SAME_ORG_COUNT] = { "WXR", "EAS", "CIV", "PEP" };
 
@@ -58,9 +60,41 @@ void same_cfg_default(same_cfg_t *c)
 	c->fips_county = 7;
 	c->dur_h = 0;
 	c->dur_m = 30;
+	strcpy(c->station, "SAMETX");
 	c->hz = 162550000u;		// NOAA WX-3
 	c->narrow = false;
 	c->level = SAME_LEVEL_DEFAULT;
+}
+
+// JJJHHMM from the board GPS's last fix (UTC). False when there is no usable date and time: the caller sends a
+// placeholder issue time then (the radio has no clock of its own)
+static bool same_utc(char *out)
+{
+	aprs_gps_t g;
+	memset(&g, 0, sizeof g);
+	bool ok = aprs_gps(&g, hal_millis());
+	dlog("same gps: ok=%d fix=%d date=%u utc=%u", ok, g.fix, (unsigned)g.date, (unsigned)g.utc_hms);
+	if (!ok || g.date == 0 || g.utc_hms == 0xFFFFFFFFu) {
+		return false;
+	}
+	unsigned dd = g.date / 10000u, mm = (g.date / 100u) % 100u, yy = g.date % 100u;
+	unsigned hh = g.utc_hms / 10000u, mi = (g.utc_hms / 100u) % 100u;
+	if (mm < 1 || mm > 12 || dd < 1 || dd > 31 || hh > 23 || mi > 59) {
+		return false;
+	}
+	static const uint16_t cum[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+	unsigned jjj = cum[mm - 1] + dd;
+	if (yy % 4u == 0 && mm > 2) {
+		jjj++;		// 2000..2099: a leap year every four years
+	}
+	if (jjj > 366) {
+		return false;
+	}
+	char *p = put3(out, jjj);
+	p = put2(p, hh);
+	put2(p, mi);
+	*p = '\0';
+	return true;
 }
 
 bool same_tx_send(const same_cfg_t *c)
@@ -81,14 +115,22 @@ bool same_tx_send(const same_cfg_t *c)
 	*p++ = '+';
 	p = put2(p, c->dur_h % 100u);
 	p = put2(p, c->dur_m % 100u);
-	p = put_str(p, "-0010000-");		// issue time (the radio has no usable clock here)
-	static const char station[] = "SAMETX";	// 8 characters, space padded
-	for (int i = 0; i < 8; i++) {
-		*p++ = i < (int)sizeof(station) - 1 ? station[i] : ' ';
+	*p++ = '-';
+	char timebuf[8];
+	if (same_utc(timebuf)) {
+		p = put_str(p, timebuf);	// JJJHHMM from the GPS fix
+	} else {
+		p = put_str(p, "0010000");	// no fix: the placeholder the format allows
+	}
+	*p++ = '-';
+	for (int i = 0; i < 8; i++) {		// station ID, 8 characters, space padded
+		char ch = c->station[i];
+		*p++ = ch != '\0' ? ch : ' ';
 	}
 	*p++ = '-';
 	*p = '\0';
 	size_t mlen = (size_t)(p - msg);
+	dlog("same: %s", msg);
 
 	// One bit buffer: preamble + header, three times back to back (afsk_mod reads each byte LSB first, as SAME sends)
 	uint8_t bits[SAME_REPEATS * (SAME_PREAMBLE + sizeof msg)];

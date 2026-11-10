@@ -41,7 +41,7 @@ static bool wake_set;
 static volatile uint8_t last_source = INPUT_SRC_KEYS;
 static volatile uint32_t timing;	// input_set_timing: long ms << 16 | repeat ms (one word: no lock needed)
 static volatile uint16_t long_now = INPUT_LONG_MS;
-static volatile bool ptt_blocked;	// input_set_ptt_block
+static volatile bool ptt_blocked = CONFIG_NO_PTT;	// input_set_ptt_block (a no-PTT build starts blocked)
 static volatile uint32_t ptt_downs;	// PTT presses seen by the engine (debug link: input.ptt_downs)
 static volatile bool dtmf_blocked;	// input_set_dtmf_block
 

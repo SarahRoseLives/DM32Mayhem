@@ -272,6 +272,7 @@ typedef struct {
 	uint16_t hdop10;	// x 10, 0xFFFF unknown
 	uint16_t speed_kmh, course;	// 0xFFFF unknown
 	uint32_t utc_hms;	// hhmmss of the last fix, 0xFFFFFFFF
+	uint32_t date;		// ddmmyy of the last fix, 0 unknown
 	uint8_t mode;		// GSA (CONFIG_GPS_SKY): 1 no fix, 2 2D, 3 3D, 0 unknown
 	uint8_t in_view;	// satellites in the table (aprs_gps_sat)
 } aprs_gps_t;

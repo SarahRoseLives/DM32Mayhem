@@ -133,6 +133,9 @@ void ui_svc_vibrate(uint8_t vibe);
 // PTT while the keys are locked (Settings > Privacy > PTT when locked): blocked = the input layer doesn't hand PTT
 // presses to the radio core (a PTT already held is still released). Weak no-op without the input layer
 void ui_svc_ptt_block(bool blocked);
+// A screen with live PTT (the FM transceiver app) lets PTT through a CONFIG_NO_PTT build. The lock and the BBS
+// still block it; the app sets this around its own lifetime. Weak no-op without the input layer
+void ui_svc_ptt_allow(bool allow);
 // Keys locked: DTMF keys send nothing during FM TX (radio-features.md 3.7). Weak no-op without the input layer
 void ui_svc_dtmf_block(bool blocked);
 

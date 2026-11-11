@@ -279,19 +279,22 @@ static uint8_t read_block(uint32_t *ty, uint32_t *ps, uint32_t *list, uint32_t *
 #define P25_AUDIO_SAMPLES	4096u
 
 static int16_t p25_audio[P25_AUDIO_SAMPLES];
+static int16_t p25_half[HRC7000_FM_RX_SAMPLES];
 static volatile uint16_t p25_audio_len, p25_audio_rd;
 
+// A ring: a long capture keeps only the newest P25_AUDIO_SAMPLES (the reader drains as it goes), so the debug command
+// can listen for a page whenever it comes instead of stopping after the first half second.
 static void audio_half(void)
 {
 	uint16_t len = p25_audio_len;
 
-	if (len + HRC7000_FM_RX_SAMPLES > P25_AUDIO_SAMPLES) {
-		hrc7000_fm_rx_audio_irq(modem, false);	// full: never leave the source running
+	if (hrc7000_fm_rx_audio(modem, p25_half) == 0) {
 		return;
 	}
-	if (hrc7000_fm_rx_audio(modem, &p25_audio[len]) != 0) {
-		p25_audio_len = (uint16_t)(len + HRC7000_FM_RX_SAMPLES);
+	for (uint16_t i = 0; i < HRC7000_FM_RX_SAMPLES; i++) {
+		p25_audio[(uint16_t)(len + i) & (P25_AUDIO_SAMPLES - 1u)] = p25_half[i];
 	}
+	p25_audio_len = (uint16_t)(len + HRC7000_FM_RX_SAMPLES);
 }
 
 static bool audio_start(void)
@@ -325,15 +328,20 @@ static void audio_stop(void)
 
 static uint16_t audio_read(int16_t *buf, uint16_t max)
 {
-	uint16_t n = (uint16_t)(p25_audio_len - p25_audio_rd);
+	uint16_t len = p25_audio_len, rd = p25_audio_rd;
+	uint16_t n = (uint16_t)(len - rd);
 
+	if (n > P25_AUDIO_SAMPLES) {
+		rd = (uint16_t)(len - P25_AUDIO_SAMPLES);
+		n = P25_AUDIO_SAMPLES;
+	}
 	if (n > max) {
 		n = max;
 	}
-	if (n != 0) {
-		memcpy(buf, &p25_audio[p25_audio_rd], (size_t)n * 2u);
-		p25_audio_rd = (uint16_t)(p25_audio_rd + n);
+	for (uint16_t i = 0; i < n; i++) {
+		buf[i] = p25_audio[(uint16_t)(rd + i) & (P25_AUDIO_SAMPLES - 1u)];
 	}
+	p25_audio_rd = (uint16_t)(rd + n);
 	return n;
 }
 

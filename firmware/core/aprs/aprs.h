@@ -187,6 +187,8 @@ typedef struct {
 	uint16_t mark_hz, space_hz;
 	bool ook;		// an OOK burst: board.ook sends the bits by keying the PA, not the AFSK modulator
 	bool p25;		// a P25 PHY burst: board.p25_tx streams the bytes through the modem's 4FSK transmitter
+	bool pocsag;		// a POCSAG baseband burst: board.pocsag_tx sends the bits through the FM modulator
+	bool invert;		// POCSAG: flip the data polarity
 	uint32_t bit_us;	// OOK: bit length
 	uint8_t repeat;		// OOK: transmissions
 	uint32_t pause_us;	// OOK: silence between them
@@ -200,7 +202,7 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms);
 void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms);
 // A raw AFSK burst (an app's tone data, not AX.25): the bits are copied, LSB first as afsk_mod reads them, and sent
 // on hz without the callsign or amateur-band checks (still band_tx only). False: one is already waiting, or too long
-#define APRS_AFSK_BURST_BYTES	512
+#define APRS_AFSK_BURST_BYTES	2048
 // duration_ms bounds the transmission (0: the AFSK default of 6 s; RTTY passes its own, it is slow)
 bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_t *tones, uint16_t nbits,
 			   uint16_t baud, uint16_t mark_hz, uint16_t space_hz, uint32_t duration_ms);
@@ -212,6 +214,11 @@ bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint
 // A P25 PHY burst (the P25 CC app): the bytes (packed dibits) are copied and board.p25_tx streams them, looping, for
 // at most duration_ms. The APRS RF service keys and unkeys the transmitter. False: one is waiting or the board has none
 bool aprs_queue_p25_burst(uint32_t hz, const uint8_t *bytes, uint16_t len, uint32_t duration_ms);
+// A POCSAG burst (the POCSAG app): the bits (MSB first) are copied and board.pocsag_tx sends them at baud, inverted
+// if asked, for at most duration_ms. The APRS RF service keys and unkeys the transmitter. False: one is waiting, too
+// long, or the board has no baseband FSK path
+bool aprs_queue_pocsag_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint16_t baud, bool invert,
+			     uint8_t level, uint32_t duration_ms);
 // Seconds a pending job may wait for a clear channel before it is dropped
 #define APRS_CSMA_GIVE_UP_MS	10000u
 

@@ -352,10 +352,18 @@ void ui_svc_vibrate(uint8_t vibe)
 }
 #endif
 
+static bool ptt_app_allow;		// ui_svc_ptt_allow: a screen with live PTT
+
+void ui_svc_ptt_allow(bool allow)
+{
+	ptt_app_allow = allow;
+}
+
 void ui_svc_ptt_block(bool blocked)
 {
 #if CONFIG_NO_PTT
-	blocked = true;		// no manual PTT in this build: apps key the radio themselves
+	if (!ptt_app_allow)
+		blocked = true;		// no manual PTT in this build: apps key the radio themselves
 #endif
 	input_set_ptt_block(blocked);
 }

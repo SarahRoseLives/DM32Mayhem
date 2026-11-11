@@ -42,6 +42,10 @@ typedef enum {
 	SCR_P25CC_TX,			// the P25 control channel transmitter (CONFIG_P25CC_TX, core/p25cc)
 	SCR_APRS_TX,			// the APRS status/message transmitter (CONFIG_APRS_TX)
 	SCR_RTTY_TX,			// the RTTY transmitter (CONFIG_RTTY_TX, core/rtty)
+	SCR_POCSAG,			// the POCSAG pager receiver (CONFIG_POCSAG)
+	SCR_POCSAG_TX,			// the POCSAG pager transmitter (CONFIG_POCSAG)
+	SCR_POCSAG_MSGS,		// the pages the POCSAG receiver heard
+	SCR_FM_TRX,			// the FM transceiver app (CONFIG_FM_TRX): the one screen where PTT is live
 	SCR_COUNT
 } ui_scr_t;
 
@@ -84,6 +88,8 @@ typedef struct {
 	bool (*key)(const input_event_t *ev);		// screen keys before the list's own (true: used)
 	void (*draw)(void);				// own drawing instead of the list
 	void (*enter)(void);				// on push
+	void (*leave)(void);				// on pop / Home, before the screen below is shown
+	bool (*tick)(uint32_t now);			// while on top; true: redraw
 	// Filtered lists (SF_FILTER): rows before filtering and the text each is matched by
 	uint16_t (*raw_count)(void);
 	bool (*raw_label)(uint16_t raw, char *buf, uint8_t len);
@@ -100,6 +106,8 @@ void ui_push(uint8_t scr, uint16_t arg);
 void ui_pop(void);
 void ui_go_home(void);
 void ui_toast(const char *text);
+// Stop the POCSAG monitor if it is running (the screen's own Back stops it; Home stops it from ui_app.c)
+void ui_pocsag_stop(void);
 // Save temporary channel changes and tell the user why a save cannot start
 bool ui_try_save_channel(void);
 void ui_dirty(void);

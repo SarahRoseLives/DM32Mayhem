@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include "config.h"
 #include "hal_afsk.h"
+#include "hal_pocsag.h"
 #include "modem/hrc7000/hrc7000.h"
 
 typedef struct {
@@ -27,6 +28,10 @@ void hrc_afsk_attach(hrc7000_t *modem, const hrc_afsk_board_t *board);
 
 // Receive works only with CONFIG_APRS_RX and the DMR glue's system interrupt (CONFIG_DMR); otherwise rx_start is NULL
 extern const hal_afsk_t hrc_afsk;
+#if CONFIG_POCSAG
+// POCSAG baseband 2FSK through the same prompt FIFO and timer (the microphone routing is hrc_afsk's)
+extern const hal_pocsag_tx_t hrc_pocsag;
+#endif
 #endif
 
 #endif

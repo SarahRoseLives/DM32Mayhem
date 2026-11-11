@@ -19,7 +19,7 @@
 #include "fm_rx_audio.h"
 #include "aprs/afsk.h"
 
-#define TICK_US		2000u	// FIFO top-up period: 16 samples' time, half a chunk
+#define TICK_US		1000u	// FIFO top-up period: 16 samples' time, half a chunk
 #define DRAIN_TICKS	8u	// after the last chunk: 16 ms for what the FIFO still holds
 
 static hrc7000_t *modem;
@@ -29,6 +29,15 @@ static const uint8_t *tones;
 static uint16_t nbits;
 static int16_t amp;
 static volatile bool busy;
+#if CONFIG_POCSAG
+static bool baseband;
+static uint32_t pocsag_bw_saved;
+static bool pocsag_bw_set;
+static const uint8_t *bb_bits;
+static uint16_t bb_nbits, bb_bit, bb_baud;
+static uint32_t bb_phase;
+static bool bb_invert;
+#endif
 static bool routed;
 static bool done;
 static uint8_t drain;
@@ -39,6 +48,7 @@ static bool irq_set;
 static int16_t chunk[C7_PROMPT_CHUNK];
 static bool pending;
 
+
 static void fill(void)
 {
 	for (;;) {
@@ -46,10 +56,35 @@ static void fill(void)
 			if (done) {
 				return;
 			}
-			size_t n = afsk_mod(&mod, tones, nbits, amp, chunk, C7_PROMPT_CHUNK);
-			if (n == 0) {
-				done = true;
-				return;
+			size_t n = 0;
+#if CONFIG_POCSAG
+			if (baseband) {
+				// A baseband NRZ bit at the baud rate: positive for 0, negative for 1 (the FM discriminator's
+				// sign), or the other way with invert. The fractional sample position keeps 512/1200/2400 exact.
+				while (n < C7_PROMPT_CHUNK) {
+					if (bb_bit >= bb_nbits) {
+						done = true;
+						break;
+					}
+					bool b = (bb_bits[bb_bit >> 3] >> (7u - (bb_bit & 7u))) & 1u;
+					if (bb_invert) {
+						b = !b;
+					}
+					chunk[n++] = b ? (int16_t)-amp : amp;
+					bb_phase += bb_baud;
+					if (bb_phase >= 8000u) {
+						bb_phase -= 8000u;
+						bb_bit++;
+					}
+				}
+			} else
+#endif
+			{
+				n = afsk_mod(&mod, tones, nbits, amp, chunk, C7_PROMPT_CHUNK);
+				if (n == 0) {
+					done = true;
+					return;
+				}
 			}
 			for (size_t i = n; i < C7_PROMPT_CHUNK; i++) {
 				chunk[i] = 0;
@@ -111,6 +146,7 @@ static bool tx_start(const uint8_t *t, uint16_t n, uint16_t baud, uint16_t mark,
 	nbits = n;
 	int32_t a = (int32_t)level * hooks->amp_per_level;
 	amp = (int16_t)(a > 32000 ? 32000 : a);
+	baseband = false;
 	afsk_mod_init(&mod, 8000u);
 	afsk_mod_tone(&mod, baud, mark, space);
 	done = false;
@@ -137,6 +173,12 @@ static void tx_stop(void)
 	uint32_t s = hrc_irq_save();
 	hrc_timer_stop(TIMER_AFSK);
 	busy = false;
+#if CONFIG_POCSAG
+	if (pocsag_bw_set) {
+		hrc7000_wr(modem, C7_FM_BANDWIDTH, pocsag_bw_saved);
+		pocsag_bw_set = false;
+	}
+#endif
 	hrc_irq_restore(s);
 	if (routed) {
 		route(false);
@@ -165,6 +207,45 @@ static void rx_stop(void)
 		hooks->listen(false);
 	}
 }
+#endif
+
+#if CONFIG_POCSAG
+static bool pocsag_start(const uint8_t *bits, uint16_t n, uint16_t baud, bool invert, uint8_t level)
+{
+	if (modem == NULL || busy || bits == NULL || n == 0 || baud == 0) {
+		return false;
+	}
+	if (!route(true)) {
+		return false;
+	}
+	baseband = true;
+	bb_bits = bits;
+	bb_nbits = n;
+	bb_baud = baud;
+	bb_bit = 0;
+	bb_phase = 0;
+	bb_invert = invert;
+	int32_t a = (int32_t)level * hooks->amp_per_level;
+	amp = (int16_t)(a > 32000 ? 32000 : a);
+	done = false;
+	pending = false;
+	drain = 0;
+	if (!irq_set) {
+		hrc_irq_register(IRQ_TIMER4, tick);
+		hrc_irq_enable(IRQ_TIMER4, true);
+		irq_set = true;
+	}
+	fill();
+	busy = true;
+	hrc_timer_periodic(TIMER_AFSK, TICK_US);
+	return true;
+}
+
+const hal_pocsag_tx_t hrc_pocsag = {
+	.start = pocsag_start,
+	.busy = tx_busy,
+	.stop = tx_stop,
+};
 #endif
 
 const hal_afsk_t hrc_afsk = {

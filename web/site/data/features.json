@@ -1,0 +1,1693 @@
+{
+  "groups": [
+    "Radio and voice",
+    "DMR data",
+    "Network (USB network adapter and IP over DMR)",
+    "Host link and USB",
+    "User interface",
+    "Bench",
+    "Storage"
+  ],
+  "features": [
+    {
+      "name": "FM",
+      "help": "analog FM receive and transmit",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Analog FM receive and transmit",
+      "bytes": {
+        "DM-1701": "29,296",
+        "MD-380": "28,056"
+      },
+      "notes": "Includes its children (tones, VOX, APRS, FM VFO)"
+    },
+    {
+      "name": "SUBTONE",
+      "help": "CTCSS / DCS encode and decode (needs FM)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "CTCSS / DCS encode and decode",
+      "bytes": {
+        "DM-1701": "904",
+        "MD-380": "3,292*"
+      },
+      "notes": "MD-380: software decode (ADC) and PWM encode; CTCSS 100.0 Hz works on air both ways (2026-10-19), DCS not yet checked"
+    },
+    {
+      "name": "DMR",
+      "help": "DMR Tier II voice: modem driver, call stack, AMBE FEC, vocoder hosting",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "DMR Tier II voice (modem, call stack, AMBE FEC, vocoder)",
+      "bytes": {
+        "DM-1701": "175,856",
+        "MD-380": "134,308"
+      },
+      "notes": "Includes every DMR feature and everything on IP over DMR"
+    },
+    {
+      "name": "DMR_PRIVACY",
+      "help": "basic privacy (Motorola / Anytone BP) on the voice path (needs DMR)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Basic privacy (Motorola / Anytone BP)",
+      "bytes": {
+        "DM-1701": "1,936",
+        "MD-380": "1,992"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_TALKER_ALIAS",
+      "help": "talker alias decode and TX of our radio name (needs DMR)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Talker alias receive and send",
+      "bytes": {
+        "DM-1701": "984",
+        "MD-380": "1,300"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_GPS",
+      "help": "ETSI GPS Info in the embedded LC (FLCO 8): the caller's position decoded and shown, ours sent from the APRS position source when the radio-wide setting is on (needs DMR)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "ETSI GPS Info in the embedded LC",
+      "bytes": {
+        "DM-1701": "2,208",
+        "MD-380": "2,152"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_SMS",
+      "help": "DMR text messages (SMS; needs DMR): ETSI IP text and ETSI defined short data, sent and received (docs/spec/dmr-data.md 5)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Text messages (ETSI IP text by default)",
+      "bytes": {
+        "DM-1701": "2,640",
+        "MD-380": "5,072"
+      },
+      "notes": "Includes the TMS format. Individual ETSI IP texts go confirmed (\"Delivered to\")"
+    },
+    {
+      "name": "DMR_TMS",
+      "help": "Motorola TMS format support for text messages: send, receive, the TMS ACK (needs DMR_SMS; docs/spec/dmr-data.md 5.1)",
+      "default": "$(CONFIG_DMR_SMS)",
+      "needs": {
+        "all": [
+          "DMR_SMS"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Motorola TMS text format",
+      "bytes": {
+        "DM-1701": "784",
+        "MD-380": "740"
+      },
+      "notes": "Optional format next to ETSI IP text"
+    },
+    {
+      "name": "DMR_ARS",
+      "help": "ARS registration with a presence server (needs DMR; docs/spec/dmr-data.md)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "ARS registration",
+      "bytes": {
+        "DM-1701": "1,112",
+        "MD-380": "1,324"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_LRRP",
+      "help": "LRRP location request / response (needs DMR; uses GPS where the board has it, else answers \"no fix\")",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "LRRP location",
+      "bytes": {
+        "DM-1701": "8,548",
+        "MD-380": "2,048"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_SIGNALING",
+      "help": "CSBK signaling: call alert, radio check (needs DMR)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "CSBK signaling: call alert, radio check",
+      "bytes": {
+        "DM-1701": "592",
+        "MD-380": "752"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_EMERGENCY",
+      "help": "DMR emergency: the emergency alarm CSBK sent and heard, emergency calls (the LC's emergency service option, hot mic), the receive alert (needs DMR; core/dmr/dmr_emergency.c, docs/spec/dmr-emergency.md)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "DMR emergency (alarm, emergency call, hot mic)",
+      "bytes": {
+        "DM-1701": "3,296",
+        "MD-380": "3,188"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_ROAMING",
+      "help": "DMR repeater roaming: move between the repeater sites of a roaming zone by signal strength (needs DMR; core/radio/roam.c, docs/spec/dmr-roaming.md)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Repeater roaming",
+      "bytes": {
+        "DM-1701": "11,952",
+        "MD-380": "12,380"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DMR_IP_GATEWAY",
+      "help": "IP over DMR packet data through a network link to the host: the USB network adapter or PPP on the serial host port (needs DMR and USB_NETWORK or NET_PPP; core/hostlink/hostlink_net.c)",
+      "default": "$(if $(and $(filter y,$(CONFIG_DMR)),$(filter y,$(CONFIG_USB_NETWORK) $(CONFIG_NET_PPP))),y,n)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": [
+          "USB_NETWORK",
+          "NET_PPP"
+        ]
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "IP over DMR gateway",
+      "bytes": {
+        "DM-1701": "44,128",
+        "MD-380": "43,220"
+      },
+      "notes": "Includes the radio's own services below"
+    },
+    {
+      "name": "ZONE_SHARE",
+      "help": "zone and channel sharing over DMR data: \"Share zone to...\" and offers of zones from other radios, imported only when the user accepts (needs DMR; core/dmr/zoneShare*.c, docs/spec/zone-share.md)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Zone and channel sharing: send a zone or a channel, import an offered one",
+      "bytes": {
+        "DM-1701": "12,240",
+        "MD-380": "12,388"
+      },
+      "notes": "Includes its screens and the import; about 4 KB of RAM. Received shares are offered by default, imported only when the user says so (zone-share.md). Measured 2026-10-24 with LTO, on the zone share branch"
+    },
+    {
+      "name": "DMR_UDP_COMPRESS",
+      "help": "compressed UDP/IPv4 headers on transmit (SAP 3, ETSI TS 102 361-3 5.6 / 7.2): UDP packets whose header fits the compression rules go with a 5 to 9 octet header instead of 28 (needs DMR; docs/spec/dmr-data.md 11)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Compressed UDP/IP headers on transmit (SAP 3)",
+      "bytes": {
+        "DM-1701": "408",
+        "MD-380": "356"
+      },
+      "notes": "Auto: not for ports 4000-4099 or ETSI IP text"
+    },
+    {
+      "name": "DMR_CONFIRMED",
+      "help": "confirmed packet data (ETSI TS 102 361-1 8.2 / -3 5.4): our IP packets confirmed per destination or UDP port (N(S), responses, selective retry, retry limit), and the selective retry asked for when confirmed data to us has bad blocks (needs DMR; docs/spec/dmr-data.md 12)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Confirmed packet data",
+      "bytes": {
+        "DM-1701": "2,880",
+        "MD-380": "2,920"
+      },
+      "notes": ""
+    },
+    {
+      "name": "NET_TCP",
+      "help": "a minimal TCP for the radio's own services on the USB network link, never over RF (needs DMR_IP_GATEWAY, whose IPv4 layer it uses; core/net, docs/spec/tcp-services.md)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR",
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "Minimal TCP",
+      "bytes": {
+        "DM-1701": "16,240",
+        "MD-380": "15,656"
+      },
+      "notes": "Includes KISS, HTTP, rigctld, APRS-IS. About 4.5 KB RAM"
+    },
+    {
+      "name": "NET_KISS",
+      "help": "KISS over TCP on port 8001, bridged to the APRS KISS TNC (needs NET_TCP and APRS; core/net/kiss_tcp.c)",
+      "default": "$(if $(and $(filter y,$(CONFIG_NET_TCP)),$(filter y,$(CONFIG_APRS))),y,n)",
+      "needs": {
+        "all": [
+          "DMR",
+          "NET_TCP",
+          "APRS"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "KISS over TCP, port 8001",
+      "bytes": {
+        "DM-1701": "700",
+        "MD-380": "752"
+      },
+      "notes": ""
+    },
+    {
+      "name": "NET_HTTP",
+      "help": "the HTTP status server on port 80: a page, JSON status and view sections, the screen (needs NET_TCP; core/net/http.c)",
+      "default": "$(CONFIG_NET_TCP)",
+      "needs": {
+        "all": [
+          "DMR",
+          "NET_TCP"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "HTTP status page and JSON, port 80",
+      "bytes": {
+        "DM-1701": "4,796",
+        "MD-380": "4,860"
+      },
+      "notes": ""
+    },
+    {
+      "name": "NET_HTTP_GZIP",
+      "help": "the status server's static files (core/net/http_assets) stored gzip compressed at build time and served with Content-Encoding: gzip; off: stored and served as they are (needs NET_HTTP; tools/gen_http_assets.py)",
+      "default": "$(CONFIG_NET_HTTP)",
+      "needs": {
+        "all": [
+          "DMR",
+          "NET_HTTP"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "HTTP static files stored and served gzip compressed",
+      "bytes": {
+        "DM-1701": "-64",
+        "MD-380": "-96"
+      },
+      "notes": "Negative: saves flash"
+    },
+    {
+      "name": "NET_WEBCTL",
+      "help": "web control on the status server: /ws (WebSocket) for the radio's front panel page, keys, status and receive audio (needs NET_HTTP; core/net/ws.c, docs/spec/tcp-services.md 5)",
+      "default": "$(CONFIG_NET_HTTP)",
+      "needs": {
+        "all": [
+          "NET_HTTP"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "Web control: the front panel page, keys, status and receive audio over /ws",
+      "bytes": {
+        "DM-1701": "9,620",
+        "MD-380": "9,332"
+      },
+      "notes": "The page and the radio's drawing included (about 6 KB gzip compressed); 1 KB RAM (tcp-services.md 5.1)"
+    },
+    {
+      "name": "NET_RIGCTL",
+      "help": "Hamlib rigctld on port 4532: frequency, mode, PTT, S meter for loggers and SDR programs (needs NET_TCP; core/net/rigctld.c)",
+      "default": "$(CONFIG_NET_TCP)",
+      "needs": {
+        "all": [
+          "DMR",
+          "NET_TCP"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "rigctld, port 4532",
+      "bytes": {
+        "DM-1701": "3,852",
+        "MD-380": "3,728"
+      },
+      "notes": ""
+    },
+    {
+      "name": "NET_APRSIS",
+      "help": "the radio's own APRS-IS client through the host: our beacons and the iGate's lines, off until a server is set (needs NET_TCP and APRS; core/net/aprsis.c)",
+      "default": "$(if $(and $(filter y,$(CONFIG_NET_TCP)),$(filter y,$(CONFIG_APRS))),y,n)",
+      "needs": {
+        "all": [
+          "DMR",
+          "NET_TCP",
+          "APRS"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "APRS-IS client",
+      "bytes": {
+        "DM-1701": "2,856",
+        "MD-380": "2,720"
+      },
+      "notes": "Needs NAT on the host"
+    },
+    {
+      "name": "NET_USRP",
+      "help": "audio linking for AllStarLink, DVSwitch and bridges (USRP voice over UDP, port 34001): the radio sends what it receives, with the squelch as keyup, and transmits what the computer sends. DMR works both ways on every radio; FM needs the radio's audio paths to the processor, which radios have both ways, DMR only or FM one way (docs/feature-matrix.md) (needs DMR_IP_GATEWAY; core/usbaudio, docs/spec/usb-audio.md)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR",
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "Audio linking (USRP over UDP, port 34001)",
+      "bytes": {
+        "DM-1701": "4,552",
+        "MD-380": "4,888"
+      },
+      "notes": "DM-1701: DMR and FM both ways. MD-380: DMR only (FM audio doesn't reach the processor yet). DM-32UV: DMR only until its board code has the FM audio paths"
+    },
+    {
+      "name": "MDNS",
+      "help": "mDNS / DNS-SD responder on the USB network link: <host>.local and the radio's services (needs DMR_IP_GATEWAY, the IP stack it runs on; core/net/mdns.c, docs/spec/mdns.md)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR",
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "mDNS / DNS-SD (rfoundry-<id>.local)",
+      "bytes": {
+        "DM-1701": "6,744",
+        "MD-380": "6,504"
+      },
+      "notes": ""
+    },
+    {
+      "name": "TFTP",
+      "help": "TFTP server on the USB network link: codeplug.bin read and (staged, checked) written, info.txt (needs DMR_IP_GATEWAY; core/net/tftp.c, docs/spec/tftp.md)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR",
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "TFTP codeplug read / write",
+      "bytes": {
+        "DM-1701": "6,356",
+        "MD-380": "6,412"
+      },
+      "notes": "Without the ID database below"
+    },
+    {
+      "name": "TFTP_IDDB",
+      "help": "DMR ID database over TFTP: iddb.bin read and written in place, and the database part of a combined codeplug.bin (needs TFTP; core/net/tftp_iddb.c, docs/spec/tftp.md 5)",
+      "default": "$(CONFIG_TFTP)",
+      "needs": {
+        "all": [
+          "TFTP"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "DMR ID database over TFTP (iddb.bin, combined codeplug.bin)",
+      "bytes": {
+        "DM-1701": "2,184",
+        "MD-380": "2,264"
+      },
+      "notes": "Follows TFTP"
+    },
+    {
+      "name": "IDDB_COMPACT",
+      "help": "the compact DMR ID database (format C): dictionary-coded names, IDs as gaps, pages with room to grow, read beside format N (needs DMR; core/codeplug/dmr_iddb.c, docs/spec/iddb-compact.md)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "Compact DMR ID database (format C) read beside format N",
+      "bytes": {
+        "DM-1701": "988",
+        "MD-380": "992"
+      },
+      "notes": "Follows DMR (iddb-compact.md)"
+    },
+    {
+      "name": "DMR_CONTROL_STATION",
+      "help": "control station mode for PC dispatch software on the USB network link: the PC as the endpoint of the radio's own data ports (passthrough) and a fixed private link address pair (needs DMR_IP_GATEWAY; docs/spec/usb-network.md 5)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "Control station mode (boot as network, PC answers data, fixed link)",
+      "bytes": {
+        "DM-1701": "288",
+        "MD-380": "484"
+      },
+      "notes": ""
+    },
+    {
+      "name": "SNMP",
+      "help": "SNMP agent (SNMPv2c) on UDP 161 of the radio's address, over the USB network and over the air, with notifications (needs DMR_IP_GATEWAY; core/snmp, docs/spec/snmp.md)",
+      "default": "$(CONFIG_DMR_IP_GATEWAY)",
+      "needs": {
+        "all": [
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "SNMP v2c agent and traps (USB and over the air)",
+      "bytes": {
+        "DM-1701": "8,460",
+        "MD-380": "8,036"
+      },
+      "notes": ""
+    },
+    {
+      "name": "SFR",
+      "help": "single frequency repeater (needs DMR): the MMDVM hotspot's SFR mode (core/hotspot/hotspotSfr.c, core/dmr/sfrRunner.c) and the standalone repeater and user roles of a channel (core/radio/radio_sfr.c, docs/spec/sfr.md 4)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Single frequency repeater: MMDVM SFR, and the standalone SFR (experimental)",
+      "bytes": {
+        "DM-1701": "6,884"
+      },
+      "notes": "MD-380: HR_C5000 lacks what the SFR glue uses"
+    },
+    {
+      "name": "SFR_DUALPATH_RX",
+      "help": "SFR user receive mode \"dual-path RX\": a voice frame whose FEC failed is taken from the other copy (needs SFR)",
+      "default": "$(CONFIG_SFR)",
+      "needs": {
+        "all": [
+          "SFR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Experimental: SFR user receive \"dual-path RX\": a voice frame whose FEC failed comes from the other copy",
+      "bytes": {
+        "DM-1701": "696"
+      },
+      "notes": "Needs SFR. DM-1701 figure with LTO (2026-10-22)"
+    },
+    {
+      "name": "SFR_CWID",
+      "help": "the standalone SFR repeater's periodic CW ID: its callsign in Morse, in FM on the channel (needs SFR)",
+      "default": "$(CONFIG_SFR)",
+      "needs": {
+        "all": [
+          "SFR"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "Experimental: standalone SFR repeater's periodic CW ID (callsign in Morse, FM)",
+      "bytes": {
+        "DM-1701": "900"
+      },
+      "notes": "Needs SFR. DM-1701 figure with LTO (2026-10-22)"
+    },
+    {
+      "name": "TASK_STACKS",
+      "help": "every task's least free stack in the debug link's tasks view: the kernel's task create / delete trace hooks keep a table of the tasks (core/app/task_stack.c, docs/spec/debuglink.md 3.7; needs DEBUGLINK). About 0.6 KB",
+      "default": "$(CONFIG_DEBUGLINK)",
+      "needs": {
+        "all": [
+          "DEBUGLINK"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Task stacks in the debug link view",
+      "bytes": {
+        "DM-1701": "536",
+        "MD-380": "560"
+      },
+      "notes": "Each task's least free stack, the tasks view section (debuglink 3.7)"
+    },
+    {
+      "name": "USB",
+      "help": "USB device (CDC serial)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "USB device",
+      "bytes": {
+        "DM-1701": "127,300",
+        "MD-380": "87,848"
+      },
+      "notes": "DM-32 has no USB (host link on the programming cable's UART). Includes everything on USB"
+    },
+    {
+      "name": "HOSTLINK",
+      "help": "the host link (core/hostlink): MMDVM hotspot, CPS and debug link over the board's host port (USB CDC, or the programming cable's UART on radios without USB)",
+      "default": "$(CONFIG_USB)",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Host link: hotspot, CPS, debug link on the host port",
+      "bytes": {
+        "DM-1701": "115,640",
+        "MD-380": "77,644"
+      },
+      "notes": "Includes its children"
+    },
+    {
+      "name": "USB_NETWORK",
+      "help": "USB network adapter personality (CDC-NCM, switched with the serial one at run time; needs USB)",
+      "default": "$(if $(and $(filter y,$(CONFIG_USB)),$(filter y,$(CONFIG_HOSTLINK))),y,n)",
+      "needs": {
+        "all": [
+          "USB",
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "USB network adapter (CDC-NCM)",
+      "bytes": {
+        "DM-1701": "48,344",
+        "MD-380": "47,468"
+      },
+      "notes": "Includes everything below"
+    },
+    {
+      "name": "NET_PPP",
+      "help": "IPv4 over PPP on the serial host port, into the IP gateway and its services: for radios whose only host link is a USB-serial cable, and a fallback on the USB serial port (needs HOSTLINK and DMR_IP_GATEWAY, which it turns on by default; core/net/ppp.c, core/hostlink/hostlink_ppp.c, docs/spec/ppp.md). On in the config.mk of a radio whose only IP link it is; off on the USB radios (docs/feature-matrix.md)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "HOSTLINK",
+          "DMR_IP_GATEWAY"
+        ],
+        "any": []
+      },
+      "group": "Network (USB network adapter and IP over DMR)",
+      "title": "PPP on the serial host port (IPv4 into the gateway)",
+      "bytes": {
+        "DM-1701": "4,368*",
+        "MD-380": "3,816*"
+      },
+      "notes": "Interop tested with pppd; checked on the DB25-D PRO and the DM-1801 Pro (docs/spec/ppp.md 8). Fits neither default image as it is when measured (DM-1701 688 B short, MD-380 1,588 B short of its 275 KB then; DM-1701 with LTO: +3,948, fits). DM-32: its only IP link, on by default with the gateway and every service (Whole images, DM-32UV)"
+    },
+    {
+      "name": "HOTSPOT",
+      "help": "MMDVM modem / hotspot mode over the host port (needs DMR and HOSTLINK)",
+      "default": "$(if $(and $(filter y,$(CONFIG_DMR)),$(filter y,$(CONFIG_HOSTLINK))),y,n)",
+      "needs": {
+        "all": [
+          "DMR",
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "MMDVM hotspot",
+      "bytes": {
+        "DM-1701": "34,196",
+        "MD-380": "~12,400"
+      },
+      "notes": "Includes split duplex and MMDVM SFR where built. MD-380: size estimated"
+    },
+    {
+      "name": "HOTSPOT_SPLIT",
+      "help": "split duplex repeater: two radios as one duplex MMDVM modem through the hotspot's vendor command 0xD6 (needs HOTSPOT; core/hotspot/hotspotSplit.c, core/dmr/bsOutbound.c, core/dmr/slotEpoch.c, docs/spec/split-duplex.md)",
+      "default": "$(CONFIG_HOTSPOT)",
+      "needs": {
+        "all": [
+          "HOTSPOT"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Split duplex repeater (two radios, one duplex modem)",
+      "bytes": {
+        "DM-1701": "12,584"
+      },
+      "notes": "MD-380: HR_C6000-only glue. DM-1701, DM-32UV, DM-1801 Pro: each half checked alone on the SDR bench; one pair (DM-1801 Pro TX, DM-32UV RX) with a subscriber: 29 of 31 calls on the right slot"
+    },
+    {
+      "name": "DEBUGLINK",
+      "help": "the debug link: framed commands on the host port for bench automation (docs/spec/debuglink.md; needs HOSTLINK)",
+      "default": "$(CONFIG_HOSTLINK)",
+      "needs": {
+        "all": [
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Debug link",
+      "bytes": {
+        "DM-1701": "32,376",
+        "MD-380": "29,084"
+      },
+      "notes": ""
+    },
+    {
+      "name": "CPS_OPENFW",
+      "help": "the open-firmware CPS protocol shim on the host port, so qdmr and the open-firmware CPS can read and write the codeplug (docs/spec/open-firmware-cps.md; needs HOSTLINK)",
+      "default": "$(CONFIG_HOSTLINK)",
+      "needs": {
+        "all": [
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Open-firmware CPS protocol (qdmr)",
+      "bytes": {
+        "DM-1701": "3,064",
+        "MD-380": "3,008"
+      },
+      "notes": ""
+    },
+    {
+      "name": "CPS_FAST",
+      "help": "the fast codeplug protocol on the debug link's framing: blank blocks skipped, CRC-32 compare so only changed blocks move, LZ4 both ways, staged writes with a power-cut safe commit (docs/spec/cps-fast.md; needs CPS_OPENFW, and DEBUGLINK or STUB_ENTRY, whose own listener carries it without the debug link)",
+      "default": "$(if $(filter y,$(CONFIG_CPS_OPENFW)),$(if $(filter y,$(CONFIG_DEBUGLINK) $(CONFIG_STUB_ENTRY)),y,n),n)",
+      "needs": {
+        "all": [
+          "CPS_OPENFW"
+        ],
+        "any": [
+          "DEBUGLINK",
+          "STUB_ENTRY"
+        ]
+      },
+      "group": "Host link and USB",
+      "title": "Fast codeplug protocol (debug link CODEPLUG)",
+      "bytes": {
+        "DM-1701": "3,732",
+        "MD-380": "3,948*"
+      },
+      "notes": "Changed 4 KB blocks only, LZ4 both ways, staged commit (cps-fast.md). DM-1701 figure with LTO (2026-10-18)"
+    },
+    {
+      "name": "VFO",
+      "help": "VFO: tune a frequency by hand (off: programmed channels only)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "VFO (hand-tuned frequency)",
+      "bytes": {
+        "DM-1701": "656",
+        "MD-380": "516"
+      },
+      "notes": "Includes the DMR VFO; VFO and VFO_DMR re-measured 2026-10-17 (DM-1701 plain build, MD-380 with LTO). Copy to VFO (dmr-voice.md 2.2) is on top of that figure, behind the same switch: about 630 B on the DM-1701 and 730 B on the MD-380 (default builds, LTO as each has it), 750 B on the C-SKY radios"
+    },
+    {
+      "name": "VFO_FM",
+      "help": "analog FM VFO (needs VFO and FM)",
+      "default": "$(if $(and $(filter y,$(CONFIG_VFO)),$(filter y,$(CONFIG_FM))),y,n)",
+      "needs": {
+        "all": [
+          "VFO",
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "FM VFO",
+      "bytes": {
+        "DM-1701": "504",
+        "MD-380": "452"
+      },
+      "notes": ""
+    },
+    {
+      "name": "VFO_DMR",
+      "help": "digital DMR VFO: color code, timeslot and talk target typed in, the Mode tile switches it FM / DMR (needs VFO and DMR)",
+      "default": "$(if $(and $(filter y,$(CONFIG_VFO)),$(filter y,$(CONFIG_DMR))),y,n)",
+      "needs": {
+        "all": [
+          "VFO",
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "DMR VFO (color code, slot, talk target typed in; mode change FM / DMR)",
+      "bytes": {
+        "DM-1701": "144",
+        "MD-380": "104"
+      },
+      "notes": "The VFO's mode, color code, slot and talk target are settings of the VFO, kept across power cycles (dmr-voice.md 2.1)"
+    },
+    {
+      "name": "DIAG",
+      "help": "the diagnostics page",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Diagnostics page",
+      "bytes": {
+        "DM-1701": "3,752",
+        "MD-380": "3,532"
+      },
+      "notes": ""
+    },
+    {
+      "name": "FONT_XL",
+      "help": "16x32 font, only useful on 240 px and wider displays",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "16x32 font",
+      "bytes": {
+        "DM-1701": "6,352*"
+      },
+      "notes": "Only useful at 240 px and wider (MD-380 is 160 px). Anti-aliased on the DM-32 (7.4 KB of glyphs)"
+    },
+    {
+      "name": "FONT_AA",
+      "help": "anti-aliased fonts from 6x12 up (JetBrains Mono Bold, 2 bits a pixel) instead of the bitmap ones: smooth text on color panels. About 5 KB more flash, 12 KB more with FONT_XL; a mono panel draws them as plain ink and gains nothing. On a 4 bpp color panel the edge grays share the 16 palette entries with the screen's colors: some font sizes or colors can be slightly harder to read (docs/spec/ui.md 5)",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Anti-aliased fonts",
+      "bytes": {
+        "DM-1701": "3,004*"
+      },
+      "notes": "Smooth text on color panels (measured 2026-10-17); the DM-32's image grew 9.5 KB with it and FONT_XL"
+    },
+    {
+      "name": "FONT_BIG",
+      "help": "larger text on 240 px and wider color panels: lists, labels and the status strip in a 9x18 font instead of 8x16 (12% larger, 24 characters a line on a 240 px panel instead of 27). About 3 KB more flash (needs FONT_AA)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FONT_AA"
+        ],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Larger text",
+      "bytes": {},
+      "notes": "9x18 lists and labels on 240 px color panels (needs FONT_AA); 3,588 B on the DM-32 (measured 2026-10-17)"
+    },
+    {
+      "name": "LANG_ES",
+      "help": "Spanish on the radio (Settings > Display > Language; core/ui/lang/es.po, docs/dev/translating.md). About 28 KB with the lookup and the accented letters of every font (7.5 KB), which the first language brings; each further one adds its text only (about 17 KB)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Spanish on the radio",
+      "bytes": {
+        "DM-1701": "28,456",
+        "MD-380": "28,348"
+      },
+      "notes": "The first language brings the lookup and the accented letters of every font (about 7.5 KB); the rest is its text. Measured 2026-10-31"
+    },
+    {
+      "name": "LANG_IT",
+      "help": "Italian on the radio (core/ui/lang/it.po): off by default, listed dimmed; the web flasher offers it to Italian browsers. About 17 KB with Spanish on",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Italian on the radio",
+      "bytes": {
+        "DM-1701": "17,304",
+        "MD-380": "17,304"
+      },
+      "notes": "Off by default; measured with Spanish on (its text, and the hashes of strings Spanish leaves untranslated). Alone it costs about as much as Spanish"
+    },
+    {
+      "name": "LANG_DEFAULT_ES",
+      "help": "the language the radio starts in, until the user picks one in Settings > Display > Language: one switch per language, at most one on (with more, the first listed wins), off = English. Needs that language's switch. No flash cost",
+      "default": "n",
+      "needs": {
+        "all": [
+          "LANG_ES"
+        ],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Start in Spanish",
+      "bytes": {
+        "DM-1701": "0",
+        "MD-380": "0"
+      },
+      "notes": "The language the radio starts in until the user picks one (needs LANG_ES); the web flasher sets it from its Radio language choice"
+    },
+    {
+      "name": "LANG_DEFAULT_IT",
+      "help": "",
+      "default": "n",
+      "needs": {
+        "all": [
+          "LANG_IT"
+        ],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Start in Italian",
+      "bytes": {
+        "DM-1701": "0",
+        "MD-380": "0"
+      },
+      "notes": "As LANG_DEFAULT_ES (needs LANG_IT)"
+    },
+    {
+      "name": "UI_COLOR",
+      "help": "color screen settings: theme, highlight color, filled status bar (off: the dark theme only; for radios whose only screen is monochrome)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Color screen settings (theme, highlight color, filled status bar)",
+      "bytes": {
+        "DM-1701": "672",
+        "MD-380": "608"
+      },
+      "notes": "Off on the DM-1801 Pro (monochrome screen; 628 B there). Measured 2026-10-17; DM-1701 with LTO 612 B"
+    },
+    {
+      "name": "UI_SETTINGS",
+      "help": "the Settings menu on the radio (off: settings keep their stored values and are set with qdmr; docs/spec/ui.md)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "User interface",
+      "title": "Settings menu on the radio",
+      "bytes": {
+        "DM-1701": "5,304",
+        "MD-380": "5,640"
+      },
+      "notes": ""
+    },
+    {
+      "name": "SCAN",
+      "help": "channel / zone scan, VFO band scan, dual watch, nuisance delete (docs/spec/radio-features.md)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Scan, band scan, dual watch, nuisance delete",
+      "bytes": {
+        "DM-1701": "2,576",
+        "MD-380": "3,032"
+      },
+      "notes": ""
+    },
+    {
+      "name": "DUAL_WATCH",
+      "help": "the dual watch screens: two channels on Home, which one PTT uses and which one a call came in on; the radio core's dual watch across zones and with the VFO, PTT on the selected channel (needs SCAN; docs/ux/dual-watch.md)",
+      "default": "$(CONFIG_SCAN)",
+      "needs": {
+        "all": [
+          "SCAN"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Dual watch: A and B in any zone or the VFO, PTT on the selected one, its screens, talk back",
+      "bytes": {
+        "DM-1701": "10,864",
+        "MD-380": "11,456"
+      },
+      "notes": "Needs SCAN. Without it, only the debug link's dual watch (two channels of one zone). Measured 2026-10-21 on the dual watch branch, default builds"
+    },
+    {
+      "name": "BEEP",
+      "help": "beeps and alert tones as PCM through the speaker (needs the board's PCM audio, which some radios have only with DMR)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Beeps and alert tones",
+      "bytes": {
+        "DM-1701": "1,552",
+        "MD-380": "1,800"
+      },
+      "notes": ""
+    },
+    {
+      "name": "FM_TX_TONES",
+      "help": "FM transmit tones: roger beep and the 1750 Hz repeater access burst (needs FM)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "FM TX tones: roger beep, 1750 Hz burst",
+      "bytes": {
+        "DM-1701": "568"
+      },
+      "notes": "MD-380: TX tone path not written"
+    },
+    {
+      "name": "DTMF",
+      "help": "DTMF transmit: keypad digits send touch tones while PTT is held on FM (needs FM; docs/spec/radio-features.md 3.7)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "DTMF transmit from the keys",
+      "bytes": {
+        "DM-1701": "920"
+      },
+      "notes": "MD-380: TX tone path not written"
+    },
+    {
+      "name": "NO_PTT",
+      "help": "No manual PTT: the microphone key never keys the radio, because a build's apps key it themselves (the SAME TX app, and the encode/decode apps to come). The key still reaches the UI, so a screen may give it a meaning",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      }
+    },
+    {
+      "name": "BOOT_GATE",
+      "help": "The boot acceptance gate (core/ui/ui_app.c, ui_screens.c): after the splash, the responsibility notice and a random six-digit code this boot generated, and no app until the user types it. Not a security lock: the code is on the panel, so it is the user acknowledging the notice",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      }
+    },
+    {
+      "name": "OOK_TX",
+      "help": "The OOK TX app (core/ook): on-off keying the transmitter from a bit pattern or a de Bruijn sequence. Needs FM and APRS (the transmit service and the AFSK audio route it mutes)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "MDC_TX",
+      "help": "The MDC-1200 signaling transmitter (core/mdc): PTT ID / ANI and the other MDC opcodes as 1200 baud AFSK. Needs FM and APRS (the transmit service and the AFSK audio route)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "P25CC_TX",
+      "help": "The P25 control channel transmitter (core/p25cc, hal_p25_tx): TSBK broadcasts through the modem's physical-layer 4FSK transmitter. Needs FM and APRS (the transmit service and the AFSK audio route it mutes)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "APRS_TX",
+      "help": "The APRS TX app (core/ui): compose and send a status, a message or a position with the APRS engine. Needs APRS",
+      "default": "n",
+      "needs": {
+        "all": [
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "RTTY_TX",
+      "help": "The RTTY TX app (core/rtty): ITA2 AFSK. Needs FM and APRS (the transmit service)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "VOX",
+      "help": "FM VOX: voice-operated transmit from the microphone level (needs FM; unverified on the bench)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "FM VOX",
+      "bytes": {
+        "DM-1701": "496",
+        "MD-380": "1,064"
+      },
+      "notes": ""
+    },
+    {
+      "name": "REF_TRIM",
+      "help": "reference oscillator trim: Settings > Advanced > Freq trim moves receive and transmit together (needs the board's hal_radio_t.ref_trim; docs/spec/radio-features.md 6.1)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Frequency trim, Settings > Advanced",
+      "bytes": {
+        "DM-1701": "2,156",
+        "MD-380": "2,232"
+      },
+      "notes": "Figures from tools/ci.sh (2026-10-30); the hook on each radio, the page and the setting"
+    },
+    {
+      "name": "BATTERY_SAVE",
+      "help": "receiver battery saving: FM receiver duty cycling while idle (needs FM)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Receiver battery saver",
+      "bytes": {
+        "DM-1701": "296",
+        "MD-380": "740"
+      },
+      "notes": ""
+    },
+    {
+      "name": "VIBRATE",
+      "help": "vibration alerts on the board's motor (hal_power_t.vibrate) for messages, call alerts, private calls and emergencies, Settings > Sound > Vibrate (core/radio/vibe.c, docs/spec/radio-features.md 4.1). On for radios with a motor (their config.mk); a board without one shows the setting dimmed",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Vibration alerts (Settings > Sound > Vibrate)",
+      "bytes": {
+        "DM-1701": "520*"
+      },
+      "notes": "Needs a vibration motor (hal_power_t.vibrate): none of these radios has one RadioFoundry drives. On for the DM-1801 Pro. Measured 2026-10-16 with CONFIG_SNMP=n; 236 B with LTO"
+    },
+    {
+      "name": "GPS",
+      "help": "the GPS receiver: the board's module driver and its NMEA parsing (drivers/gps, platform/*/gps*, CAP_GPS). Off, the radio has no GPS: DMR_GPS, LRRP and APRS keep a fixed position and answer \"no fix\". Off where the radio has none",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "GPS receiver: the module driver and its NMEA input (Settings > Location > GPS)",
+      "bytes": {
+        "MD-380": "1,196"
+      },
+      "notes": "Needs a GPS receiver. Off, DMR GPS, LRRP and APRS keep the fixed position and report no fix. MD-380 measured 2026-10-22 (LTO, 58f2cebe). The DM-1701 has none from the factory but listens for an owner-fitted one (1,308 B, LTO)"
+    },
+    {
+      "name": "AUDIO_PROBE",
+      "help": "audio path probe: debug link command 0x10 to read / write the audio chip's registers and watch the PCM stream's levels, for the USB audio feasibility tests on the bench (docs/spec/hardware-dm1701.md 21.3; needs DEBUGLINK and DMR, whose PCM stream it borrows). A diagnostic, never for a release",
+      "default": "n",
+      "needs": {
+        "all": [
+          "DEBUGLINK",
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Bench",
+      "title": "Audio path probe (debug link 0x10)",
+      "bytes": {
+        "DM-1701": "1,176*"
+      },
+      "notes": "Bench only, never in a release"
+    },
+    {
+      "name": "P25_PROBE",
+      "help": "P25 physical-layer receive probe: the debug link starts the demodulator's PHY receive test mode with the P25 frame sync and logs the raw receive RAM, for the P25 bring-up on the bench (docs/spec/p25.md 5.1; needs DEBUGLINK and DMR, whose modem and system interrupt it borrows). A diagnostic, never for a release",
+      "default": "n",
+      "needs": {
+        "all": [
+          "DEBUGLINK",
+          "DMR"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "STUB_ENTRY",
+      "help": "runtime RAM-monitor entry: command 0x1A on the host port loads the host's flash-access stub into free RAM and jumps to it without a power cycle, so updates need no key combo at power-on (the web flasher, stub/stubtool.py, rfoundry; core/stubentry, docs/spec/stub-entry.md). Its own feature: with the debug link off it answers on its own small listener (PING, VERSION, STUB). Needs HOSTLINK (the task that owns the port) and a platform with hal_system_t.enter_stub: the HR_C7000, and the STM32F4 with an 8 KB staging buffer (docs/spec/stub-stm32f4.md). On wherever the host link is; a board leaves it off in its config.mk only for a stated reason",
+      "default": "$(CONFIG_HOSTLINK)",
+      "needs": {
+        "all": [
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Loader hand-over (stub entry, command 0x1A)",
+      "bytes": {
+        "DM-1701": "768*"
+      },
+      "notes": "Updates and backups over the radio's own link without the bootloader key press: the web flasher and stub/stubtool.py. On by default on every radio, with or without the debug link (stub-entry.md); on the STM32 radios a RAM flash stub that also takes 8 KB of RAM (stub-stm32f4.md) (the DM-1701's RAM is 95 % used with it on)"
+    },
+    {
+      "name": "NAND_STORAGE",
+      "help": "the core's storage (settings, codeplug) on SPI NAND: the NOR-like 4 KB sector layer over the board's own block range (drivers/flash/nand_sectors, docs/spec/nand-sectors.md). On in the config.mk of radios whose data flash is SPI NAND (docs/feature-matrix.md); off, such a radio runs on the default settings and stores nothing. Radios with SPI NOR don't use it",
+      "default": "n",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Storage",
+      "title": "Settings and codeplug storage on SPI NAND",
+      "bytes": {},
+      "notes": "For radios whose data flash is SPI NAND: on for the DB25-D (about 6.6 KB flash, 1.5 KB RAM), not in these columns. These radios have SPI NOR and don't use it (nand-sectors)"
+    },
+    {
+      "name": "CRASH_LOG",
+      "help": "the crash log: a CPU fault, a task stack overflow, running out of heap or a failed assertion keeps a record (registers, fault status, task, stack words) where a reset doesn't clear it and restarts the radio; the next start shows it (core/crash, docs/spec/crash-log.md). Off: a crash stops the radio until a power cycle, as before. Needs nothing else",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Crash log",
+      "bytes": {
+        "DM-1701": "1,572",
+        "MD-380": "1,756"
+      },
+      "notes": "A fault, stack overflow, heap exhaustion or failed assertion keeps a record across the restart; the debug link shows it (crash-log.md)"
+    },
+    {
+      "name": "CRASH_SCREEN",
+      "help": "the crash log's screen: Settings > Advanced > Crash log, the record's summary and Clear (needs CRASH_LOG). Off, the debug link still shows the record",
+      "default": "$(CONFIG_CRASH_LOG)",
+      "needs": {
+        "all": [
+          "CRASH_LOG"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Crash log screen",
+      "bytes": {
+        "DM-1701": "1,024",
+        "MD-380": "1,408*"
+      },
+      "notes": "Settings > Advanced > Crash log: the record's summary and Clear"
+    },
+    {
+      "name": "CRASH_REPORT",
+      "help": "the crash report: the crash log's record, packed (76-124 bytes), as one UDP datagram over DMR packet data to a codeplug contact, from the Crash log screen or after the restart (off / ask / automatic; docs/spec/crash-log.md 5) (needs CRASH_SCREEN and DMR)",
+      "default": "$(if $(and $(filter y,$(CONFIG_CRASH_SCREEN)),$(filter y,$(CONFIG_DMR))),y,n)",
+      "needs": {
+        "all": [
+          "CRASH_SCREEN",
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Crash report over DMR",
+      "bytes": {
+        "DM-1701": "1,440",
+        "MD-380": "1,712*"
+      },
+      "notes": "Sends the crash record as one UDP datagram to a codeplug contact, from the menu or after the restart (Off, Ask, Auto) (crash-log.md 5). Needs the screen"
+    },
+    {
+      "name": "WATCHDOG",
+      "help": "the hardware watchdog: started in main(), fed by the idle task, so a hang or a starved system of a few seconds resets the chip (the IWDG on the STM32F4, the SoC's watchdog on the HR_C7000; docs/spec/watchdog.md). With the debug link it also has a bench test (command 0x1D). Off: no watchdog runs, as before. Needs nothing else",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Hardware watchdog",
+      "bytes": {
+        "DM-1701": "932",
+        "MD-380": "856"
+      },
+      "notes": "Fed by the idle task; a hang or a starved system resets the radio. Timeout about 5 s on the STM32 radios, 4 s on the HR_C7000 radios (watchdog.md)"
+    },
+    {
+      "name": "FAULT_TRACE",
+      "help": "the fault trace: a CPU fault prints its registers on the host UART, three framed lines a second apart, before the restart (core/crash/crash_trace.c, tools/rfoundry_fault_trace.py; docs/spec/crash-log.md 2.3). Only where the host port is a UART the fault handler can drive polled: the HR_C7000 radios (the STM32 radios' config.mk turn it off: USB only). Off: straight to the record and the restart. Needs nothing else",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Host link and USB",
+      "title": "Fault trace on the host UART",
+      "bytes": {},
+      "notes": "A CPU fault's registers in three framed lines before the restart, about 600 B (crash-log.md 2.3). The STM32 radios' host port is USB"
+    },
+    {
+      "name": "AM_RX",
+      "help": "air band AM receive: FM channels and the VFO in 108-137 MHz are received in AM, receive only, on radios whose receiver does AM (CAP_AM_RX; needs FM; docs/spec/airband-and-broadcast.md). Off where the receiver can't",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Air band AM receive (108-137 MHz)",
+      "bytes": {
+        "DM-1701": "408*"
+      },
+      "notes": "Needs a receiver that does AM; DM-32 board glue not written yet, so nothing runs"
+    },
+    {
+      "name": "BCAST_FM",
+      "help": "broadcast FM receive: FM channels and the VFO in the broadcast receiver's range play on that second receiver chip, receive only (board.bcast, CAP_BCAST_FM; docs/spec/airband-and-broadcast.md). Off where there is none",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Broadcast FM receiver",
+      "bytes": {
+        "DM-1701": "~0*"
+      },
+      "notes": "Needs a second receiver chip (DM-32's RDA5807M); glue not written yet"
+    },
+    {
+      "name": "APRS",
+      "help": "APRS (core/aprs, docs/spec/aprs.md): position, status and message packets as AX.25 / 1200 baud AFSK on FM, positions over DMR (LRRP / UDT), a KISS TNC on the host port. Transmit stays off until the user turns it on (needs FM)",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "APRS: AFSK positions, status, messages; DMR positions; KISS TNC",
+      "bytes": {
+        "DM-1701": "26,568",
+        "MD-380": "26,628"
+      },
+      "notes": "Includes APRS receive, KISS over TCP and APRS-IS where built. MD-380: AFSK TX needs the tone path (not written), DMR positions work"
+    },
+    {
+      "name": "APRS_RX",
+      "help": "APRS receive: the AFSK demodulator, station list, messages to us, digipeater (needs APRS; useful only on boards whose board.afsk can sample received audio)",
+      "default": "$(CONFIG_APRS)",
+      "needs": {
+        "all": [
+          "APRS"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "APRS receive: demodulator, station list, digipeater",
+      "bytes": {
+        "DM-1701": "8,892"
+      },
+      "notes": "DM-1701: FM receive audio on the I2S stream, squelch gated (aprs 5.3). MD-380: not written"
+    },
+    {
+      "name": "APRS_IGATE",
+      "help": "APRS iGate rules, RF <-> APRS-IS through the host helper tools/aprs_gate.py (needs APRS_RX and HOSTLINK)",
+      "default": "$(if $(and $(filter y,$(CONFIG_APRS_RX)),$(filter y,$(CONFIG_HOSTLINK))),y,n)",
+      "needs": {
+        "all": [
+          "APRS_RX",
+          "HOSTLINK"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "APRS iGate rules (with tools/aprs_gate.py)",
+      "bytes": {
+        "DM-1701": "1,820*"
+      },
+      "notes": "Needs APRS receive. DM-1701: off by default"
+    },
+    {
+      "name": "GPS_SKY",
+      "help": "the GPS status screen: satellites on a sky plot and signal bars, fix quality, grid locator (core/aprs/nmea_sky.c, core/ui/ui_gps.c, docs/spec/aprs.md 7.1). Needs GPS and APRS; off, Tools > Position is a page of text",
+      "default": "$(if $(and $(filter y,$(CONFIG_GPS)),$(filter y,$(CONFIG_APRS))),y,n)",
+      "needs": {
+        "all": [
+          "GPS",
+          "APRS"
+        ],
+        "any": []
+      },
+      "group": "DMR data",
+      "title": "GPS screen: sky plot, signal bars, grid locator (Tools > Position)",
+      "bytes": {
+        "MD-380": "5,244"
+      },
+      "notes": "Needs GPS and APRS. 176 B of RAM. MD-380 measured 2026-10-29 (LTO)"
+    },
+    {
+      "name": "BBS",
+      "help": "The onboard packet BBS (core/bbs, docs/spec/bbs.md): a connected-mode AX.25 node with a flash-backed mailbox, reached over the APRS RF modem. Needs FM (the modulator) and APRS (HDLC, AFSK and the radio's transmit service)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "SAME_TX",
+      "help": "The SAME (NOAA/EAS) header transmitter (core/same): a TX app that sends a SAME AFSK burst through the APRS AFSK modem. Needs FM and APRS. The radio's own band check still applies",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "POCSAG",
+      "help": "The POCSAG pager app (core/pocsag): a baseband 2FSK encoder through the FM modulator and a receiver from the FM discriminator audio. Needs FM and APRS (its transmit service and receive audio)",
+      "default": "n",
+      "needs": {
+        "all": [
+          "APRS",
+          "APRS_RX",
+          "DMR"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "KEY_ASSIGN",
+      "help": "key assignment: Settings > Keys and the codeplug's quick-key slots say what the board's programmable keys do (core/input/keyassign.c, docs/spec/ui.md 3.1)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Key assignment (Settings > Keys, codeplug)",
+      "bytes": {
+        "DM-1701": "2,120",
+        "MD-380": "2,188"
+      },
+      "notes": "Up to 9 keys. Measured 2026-10-24"
+    },
+    {
+      "name": "CHANNEL_LIST",
+      "help": "the hub's Channels list: every codeplug channel by number, and a channel's settings (read only; core/ui/ui_menus.c, docs/spec/ui.md 2)",
+      "default": "y",
+      "needs": {
+        "all": [],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Channels list: every channel by number, a channel's settings (hub 5)",
+      "bytes": {
+        "DM-1701": "1,536",
+        "MD-380": "2,140"
+      },
+      "notes": ""
+    },
+    {
+      "name": "CHANNEL_EDIT",
+      "help": "editing a channel on the radio, New channel from current settings, keypad text entry (docs/spec/ui.md 2.1): with the Channels list",
+      "default": "$(CONFIG_CHANNEL_LIST)",
+      "needs": {
+        "all": [
+          "CHANNEL_LIST"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Channel editor: edit a channel, New channel from current settings, text entry",
+      "bytes": {
+        "DM-1701": "4,656",
+        "MD-380": "4,252"
+      },
+      "notes": "Needs CHANNEL_LIST. Without it a channel's settings are read only. Measured 2026-10-17"
+    },
+    {
+      "name": "ZONE_EDIT",
+      "help": "the zone editor in a zone's list: add, move, copy here, remove channels; rename, copy, delete zones (docs/spec/ui.md 2.2): with the channel editor",
+      "default": "$(CONFIG_CHANNEL_EDIT)",
+      "needs": {
+        "all": [
+          "CHANNEL_EDIT"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Zone editor: move, add, copy and remove channels in a zone; rename, copy and delete a zone",
+      "bytes": {
+        "DM-1701": "6,580",
+        "MD-380": "6,928"
+      },
+      "notes": "Needs CHANNEL_EDIT. Measured 2026-10-24 on the default builds, LTO as each has it; also about 1.3 KB of RAM"
+    },
+    {
+      "name": "CONTACT_EDIT",
+      "help": "the contact editor: a new contact from Find, a call's actions or a typed number, its name, ID, type and timeslot (docs/spec/ui.md 2.4): with the channel editor (its text entry) and DMR",
+      "default": "$(if $(and $(filter y,$(CONFIG_CHANNEL_EDIT)),$(filter y,$(CONFIG_DMR))),y,n)",
+      "needs": {
+        "all": [
+          "CHANNEL_EDIT",
+          "DMR"
+        ],
+        "any": []
+      },
+      "group": "Radio and voice",
+      "title": "Contact editor: a new contact from Find or a call's actions (name, ID, type, timeslot)",
+      "bytes": {
+        "DM-1701": "1,580",
+        "MD-380": "1,580"
+      },
+      "notes": "Needs CHANNEL_EDIT and DMR. Measured 2026-10-30 on the default builds"
+    }
+  ],
+  "reported": [
+    "AM_RX",
+    "APRS",
+    "APRS_IGATE",
+    "APRS_RX",
+    "BATTERY_SAVE",
+    "BCAST_FM",
+    "BEEP",
+    "CPS_FAST",
+    "CRASH_LOG",
+    "DEBUGLINK",
+    "DIAG",
+    "DMR",
+    "DMR_ARS",
+    "DMR_CONFIRMED",
+    "DMR_GPS",
+    "DMR_IP_GATEWAY",
+    "DMR_LRRP",
+    "DMR_PRIVACY",
+    "DMR_ROAMING",
+    "DMR_SIGNALING",
+    "DMR_SMS",
+    "DMR_TALKER_ALIAS",
+    "DMR_UDP_COMPRESS",
+    "DTMF",
+    "FM",
+    "FM_TX_TONES",
+    "HOSTLINK",
+    "HOTSPOT",
+    "HOTSPOT_SPLIT",
+    "IDDB_COMPACT",
+    "MDNS",
+    "NET_APRSIS",
+    "NET_HTTP",
+    "NET_HTTP_GZIP",
+    "NET_KISS",
+    "NET_PPP",
+    "NET_RIGCTL",
+    "NET_TCP",
+    "NET_USRP",
+    "SCAN",
+    "SFR",
+    "SNMP",
+    "SUBTONE",
+    "TFTP",
+    "TFTP_IDDB",
+    "USB",
+    "USB_NETWORK",
+    "VFO",
+    "VFO_DMR",
+    "VFO_FM",
+    "VOX"
+  ]
+}

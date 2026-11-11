@@ -25,7 +25,8 @@
 #include "codeplug/codeplug.h"
 
 #define QUEUE_LEN	2		// frames waiting for the air
-#define TONES_BYTES	512		// one transmission: preamble, frames, tail (4096 symbols, 3.4 s)
+#define TONES_BYTES	512		// one APRS transmission: preamble, frames, tail (4096 symbols, 3.4 s)
+#define RAW_BYTES	2048		// a raw app burst: POCSAG's 1,700-bit pages, or a P25 stream
 #define TAIL_FLAGS	3
 #define MIN_FLAGS	8
 #define RF_TRIES	3		// a frame given up after this many failed transmissions
@@ -99,6 +100,8 @@ static struct {
 		bool pending, taken;
 		bool ook;
 		bool p25;
+		bool pocsag;
+		bool invert;
 		uint32_t hz;
 		bool narrow;
 		uint8_t level;
@@ -107,7 +110,7 @@ static struct {
 		uint32_t bit_us, pause_us;
 		uint8_t repeat;
 		uint32_t send_max_ms;
-		uint8_t tones[TONES_BYTES];
+		uint8_t tones[RAW_BYTES];
 	} raw;
 	bool dmr_due;		// a digital beacon to send (outside the lock)
 	struct {
@@ -1293,6 +1296,8 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 		job->space_hz = a.raw.space_hz;
 		job->ook = a.raw.ook;
 		job->p25 = a.raw.p25;
+		job->pocsag = a.raw.pocsag;
+		job->invert = a.raw.invert;
 		job->bit_us = a.raw.bit_us;
 		job->repeat = a.raw.repeat;
 		job->pause_us = a.raw.pause_us;
@@ -1348,6 +1353,8 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 	job->space_hz = AFSK_SPACE_HZ;
 	job->ook = false;
 	job->p25 = false;
+	job->pocsag = false;
+	job->invert = false;
 	job->send_max_ms = RF_SEND_MAX_MS;
 	a.v.rf_active = true;
 	changed();
@@ -1632,6 +1639,8 @@ bool aprs_queue_afsk_burst(uint32_t hz, bool narrow, uint8_t level, const uint8_
 		a.raw.space_hz = space_hz;
 		a.raw.ook = false;
 		a.raw.p25 = false;
+		a.raw.pocsag = false;
+		a.raw.invert = false;
 		a.raw.send_max_ms = duration_ms != 0 ? duration_ms : RF_SEND_MAX_MS;
 		a.raw.pending = true;
 		a.raw.taken = false;
@@ -1665,6 +1674,8 @@ bool aprs_queue_ook_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint
 		a.raw.nbits = nbits;
 		a.raw.ook = true;
 		a.raw.p25 = false;
+		a.raw.pocsag = false;
+		a.raw.invert = false;
 		a.raw.bit_us = bit_us;
 		a.raw.repeat = (uint8_t)(reps > 255u ? 255u : reps);
 		a.raw.pause_us = pause_us;
@@ -1694,7 +1705,39 @@ bool aprs_queue_p25_burst(uint32_t hz, const uint8_t *bytes, uint16_t len, uint3
 		a.raw.nbits = len;
 		a.raw.ook = false;
 		a.raw.p25 = true;
+		a.raw.pocsag = false;
+		a.raw.invert = false;
 		a.raw.send_max_ms = duration_ms != 0 ? duration_ms : 30000u;
+		a.raw.pending = true;
+		a.raw.taken = false;
+		changed();
+	}
+	UNLOCK();
+	return ok;
+}
+
+// A POCSAG baseband burst (the POCSAG app). The bits are MSB first; board.pocsag_tx sends them at baud.
+bool aprs_queue_pocsag_burst(uint32_t hz, const uint8_t *bits, uint16_t nbits, uint16_t baud, bool invert,
+			     uint8_t level, uint32_t duration_ms)
+{
+	if (bits == NULL || nbits == 0 || nbits > 8u * APRS_AFSK_BURST_BYTES || baud < 512u || baud > 2400u ||
+			board.pocsag_tx == NULL) {
+		return false;
+	}
+	LOCK();
+	bool ok = !a.raw.pending && band_tx(hz);
+	if (ok) {
+		memcpy(a.raw.tones, bits, (size_t)((nbits + 7u) / 8u));
+		a.raw.hz = hz;
+		a.raw.narrow = false;
+		a.raw.level = level;
+		a.raw.nbits = nbits;
+		a.raw.baud = baud;
+		a.raw.ook = false;
+		a.raw.p25 = false;
+		a.raw.pocsag = true;
+		a.raw.invert = invert;
+		a.raw.send_max_ms = duration_ms != 0 ? duration_ms : 10000u;
 		a.raw.pending = true;
 		a.raw.taken = false;
 		changed();

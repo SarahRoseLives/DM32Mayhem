@@ -1,0 +1,127 @@
+{
+  "radios": [
+    {
+      "id": "dm32",
+      "name": "Baofeng DM-32UV",
+      "maker": "Baofeng",
+      "model": "DM-32UV",
+      "also": [],
+      "kind": "handheld",
+      "order": 1,
+      "level": "supported",
+      "release": "stable",
+      "summary": "FM and DMR voice both ways, CTCSS/DCS, APRS both ways, GPS data, the hotspot and each split duplex half work on air. Open: FM deviation at 12.5 kHz and an outdoor GPS fix.",
+      "bands": "136-174 / 400-480 MHz",
+      "power": "1 / 5 W",
+      "cpu": "HR_C7000",
+      "display": "color, 240 × 320",
+      "gallery": null,
+      "docs": {
+        "hardware": "docs/spec/hardware-dm32.md",
+        "codec": "docs/spec/codec-dm32.md",
+        "install": "docs/user/19-moving-from-stock-dm32.md",
+        "bringup": "docs/testing/dm32-bringup.md"
+      },
+      "flash": {
+        "backend": "c7000-stub",
+        "board": "dm32",
+        "family": "serial-loader",
+        "link": "serial-cable",
+        "bootloader": [
+          "Turn the radio off and connect the programming cable.",
+          "Hold PTT and SK1.",
+          "Turn the radio on while you hold both keys. The green LED lights.",
+          "Release the keys."
+        ],
+        "stock_versions": [
+          "DM32.01.01.049",
+          "DM32.00.01.046"
+        ],
+        "bootloader_hold": [
+          "ptt",
+          "sk1"
+        ],
+        "first_stage": null,
+        "stock_console": null,
+        "update_mode": "baofeng",
+        "read_rate": null,
+        "codec_version": null,
+        "build_options": [],
+        "protect": [
+          {
+            "mem": "data",
+            "start": 4096,
+            "end": 823296,
+            "what": "factory calibration: the stock codeplug area's 4 KB page tagged 2, which can be any page of it (hardware-dm32.md 10.1, 11.1)"
+          },
+          {
+            "mem": "data",
+            "start": 7405568,
+            "end": 7409664,
+            "what": "a decoded calibration copy an earlier firmware left, the fallback when no factory page is found (hardware-dm32.md 10.1, 17)"
+          }
+        ],
+        "stub_tested": true
+      },
+      "backup": {
+        "stock": "full",
+        "rfoundry": "full",
+        "spi_size": 16777216
+      },
+      "frame": {
+        "shape": "handheld-tall",
+        "body": "#22252a",
+        "accent": "#e0a526",
+        "lens": [
+          24,
+          34
+        ]
+      },
+      "codeplug": {
+        "base": 7340032,
+        "end": 15728640,
+        "tftp": false,
+        "names": [
+          "DM-32",
+          "DM-32UV",
+          "dm32"
+        ]
+      },
+      "looks": [],
+      "unsupported": [
+        "NAND_STORAGE",
+        "USB",
+        "USB_NETWORK"
+      ],
+      "not_written": [
+        "VOX",
+        "AUDIO_PROBE"
+      ],
+      "volts": "battery",
+      "clock": "backed",
+      "variants": [],
+      "variant_pattern": null,
+      "variant_check": null,
+      "status": "supported",
+      "support": "FM and DMR voice both ways, CTCSS/DCS, APRS both ways, GPS data, the hotspot and each split duplex half work on air. Open: FM deviation at 12.5 kHz and an outdoor GPS fix.",
+      "unsupported_reasons": {
+        "NAND_STORAGE": "the data flash is SPI NOR, GD25Q128 class (docs/spec/hardware-dm32.md 10)",
+        "USB": "no USB data port: the host link runs on the programming cable's UART",
+        "USB_NETWORK": "no USB data port for the network adapter: PPP on the host UART stands in"
+      },
+      "not_written_reasons": {
+        "VOX": "no hal_power_t.mic_level hook yet",
+        "AUDIO_PROBE": "no board.audio_tap yet"
+      },
+      "required": [],
+      "config": {
+        "full": []
+      },
+      "image": "img/dm32.svg",
+      "frame_image": null,
+      "frame_geometry": null,
+      "screens": []
+    }
+  ],
+  "planned": []
+}

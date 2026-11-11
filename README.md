@@ -14,8 +14,8 @@ programming cable in Chrome or Edge.
 <img src="docs/screenshots/tx-menu.png" width="240" alt="The TX app menu">
 </p>
 
-*Home (RX, TX, TRX, About, Config, Diagnostics) and the TX app grid. RX and TRX are the same grid, ready for the
-receive and transceive apps.*
+*Home (RX, TX, TRX, About, Config, Diagnostics) and the TX app grid. RX is the same grid, ready for the receive
+apps; TRX holds the POCSAG pager app.*
 
 ## Boot gate
 
@@ -39,6 +39,7 @@ again. It is an acknowledgement, not a security lock: the code is on the panel.
 | **P25 CC TX** | A P25 Phase 1 control channel |
 | **APRS TX** | APRS status, message and position packets |
 | **RTTY TX** | ITA2/Baudot RTTY |
+| **POCSAG** (TRX) | Pager pages: monitor 512/1200/2400 baud, and send to a pager |
 
 ### SAME TX
 
@@ -86,12 +87,20 @@ AX.25, keys, retries and tunes; the app shows the radio's APRS callsign, frequen
 ITA2/Baudot RTTY at 45.45 or 50 baud, with selectable mark and shift (space = mark + shift), a repeated message and a
 long text field, sent through the AFSK path.
 
+### POCSAG
+
+The TRX-grid pager app has two modes. **Monitor** tunes the VFO to the channel, starts the FM receive audio and decodes
+pages at 512, 1200 or 2400 baud into a heard list. **Send** builds a POCSAG page (capcode, function, alphanumeric or
+numeric text, repeats, data polarity) and sends it as baseband 2FSK through the FM modulator. The defaults are
+439.9875 MHz and capcode 1139775. BCH(31,21) error correction is in `core/pocsag`.
+
 ## How the transmissions work
 
 - **AFSK** (SAME, MDC-1200, RTTY) through the HR_C7000 FM modulator at 8 kHz PCM.
 - **OOK** by switching the PA drive (DAC B) at the bit rate.
 - **P25** through the HR_C7000 physical-layer 4FSK transmitter in 36-byte blocks.
 - **APRS** through the existing APRS engine.
+- **POCSAG** as baseband 2FSK through the FM modulator; the receiver feeds the FM discriminator audio to `core/pocsag`.
 
 The radio task owns the transmitter: each app queues a job and the APRS/transmit service keys, tunes and unkeys. The
 long text editor on the apps holds 128 characters and shows the tail while typing. The boot gate (`CONFIG_BOOT_GATE`)

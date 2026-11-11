@@ -92,6 +92,9 @@ const board_t board = {
 #if CONFIG_P25CC_TX
 	.p25_tx = &dm32_p25_tx,
 #endif
+#if CONFIG_POCSAG
+	.pocsag_tx = &dm32_pocsag_tx,
+#endif
 	.power = &dm32_power,
 	.flash = &hrc_flash_spi0,
 #if CONFIG_DIAG

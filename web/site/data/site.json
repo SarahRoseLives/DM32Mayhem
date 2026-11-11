@@ -1,0 +1,22 @@
+{
+  "format": "rfoundry-site/1",
+  "git": "504494d8",
+  "version": "504494d8",
+  "built": "2026-11-10T08:07:48+00:00",
+  "release": "v26.11",
+  "beta": null,
+  "branch": "main",
+  "repo": "https://github.com/SarahRoseLives/DM32Mayhem",
+  "community": "",
+  "languages": [
+    {
+      "code": "en",
+      "name": "English"
+    }
+  ],
+  "default_language": "en",
+  "reports": {
+    "sentry_dsn": null
+  },
+  "tool": null
+}

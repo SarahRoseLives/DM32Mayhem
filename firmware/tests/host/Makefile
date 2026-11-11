@@ -356,6 +356,11 @@ run-rf: at1846sTest subaudioTest
 	./subaudioTest
 .PHONY: run-rf
 
+# POCSAG: the page encoder and the receiver from synthetic discriminator audio
+TESTS   += pocsagTest
+pocsagTest: pocsagTest.c $(CORE)/pocsag/pocsag.c $(CORE)/pocsag/pocsag.h $(CORE)/pocsag/pocsag_bch_table.h
+	$(CC) $(CFLAGS) -o $@ pocsagTest.c $(CORE)/pocsag/pocsag.c
+
 # The SKY72310 synthesizer's divider words against the data sheet and a register model, the HR_C5000 variant of the
 # HR_C6000 driver, and the GPS NMEA line framing and receive ring the GPS drivers share
 TESTS   += sky72310Test hrc5000Test nmeaLineTest gpsRxTest
@@ -392,7 +397,7 @@ codecDescTest: codecDescTest.c $(ROOT)/platform/stm32f4/codec_desc.h
 	$(CC) $(CFLAGS) -Wshadow -o $@ codecDescTest.c
 
 run: run-chips
-run-chips: sky72310Test hrc5000Test nmeaLineTest gpsRxTest gpsBaudTest codecDescTest
+run-chips: sky72310Test hrc5000Test nmeaLineTest gpsRxTest gpsBaudTest codecDescTest pocsagTest
 	./sky72310Test
 	./hrc5000Test
 	./nmeaLineTest

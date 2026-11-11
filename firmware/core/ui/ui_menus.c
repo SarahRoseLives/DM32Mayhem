@@ -30,7 +30,7 @@
 #if CONFIG_OOK_TX
 #include "ook/ook.h"
 #endif
-#if CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_RTTY_TX || CONFIG_APRS_TX
+#if CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_RTTY_TX || CONFIG_APRS_TX || CONFIG_POCSAG
 #include "aprs/aprs.h"
 #endif
 #if CONFIG_MDC_TX
@@ -45,6 +45,9 @@
 #if CONFIG_APRS_TX
 #include "aprs/aprs_fmt.h"
 #include "ui_svc_aprs.h"
+#endif
+#if CONFIG_POCSAG
+#include "pocsag/pocsag.h"
 #endif
 
 #ifndef RFOUNDRY_GIT
@@ -5795,7 +5798,7 @@ static const ui_scr_def_t cpf_screen = {
 // ======================= The app menu (Home) =======================
 // A portapak-style grid of apps, two columns by three rows: the icon over its name, the focused tile filled cyan. It is
 // Home in this build. The top level groups the apps by direction (RX, TX, TRX) and opens About, Config and Diagnostics.
-// RX, TX and TRX are submenus of the same grid; their apps are still to come, so they show empty slots for now.
+// RX, TX and TRX are submenus of the same grid; slots with no app yet are drawn empty.
 enum { MENU_TOP, MENU_RX, MENU_TX, MENU_TRX, MENU_IDS };
 #define MT_COLS		2
 #define MT_ROWS		3
@@ -5972,13 +5975,28 @@ static void icon_rtty(int ox, int oy, int s, color_t c)
 }
 #endif
 
-#if CONFIG_SAME_TX || CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_P25CC_TX || CONFIG_APRS_TX || CONFIG_RTTY_TX
-#define MENU_HAVE_TX	1
+#if CONFIG_POCSAG
+static void icon_pager(int ox, int oy, int s, color_t c)
+{
+	iline(ox, oy, s, 3, 2, 13, 2, c);		// a pager: its body...
+	iline(ox, oy, s, 13, 2, 13, 14, c);
+	iline(ox, oy, s, 13, 14, 3, 14, c);
+	iline(ox, oy, s, 3, 14, 3, 2, c);
+	iline(ox, oy, s, 5, 5, 11, 5, c);		// ... its display
+	iline(ox, oy, s, 5, 8, 11, 8, c);
+	iline(ox, oy, s, 5, 11, 8, 11, c);
+	ipx(ox, oy, s, 12, 12, c);			// its LED
+}
+#endif
+
 typedef struct {
 	const char *label;
 	void (*icon)(int ox, int oy, int s, color_t c);
 	uint8_t scr;
 } menu_tx_tile_t;
+
+#if CONFIG_SAME_TX || CONFIG_OOK_TX || CONFIG_MDC_TX || CONFIG_P25CC_TX || CONFIG_APRS_TX || CONFIG_RTTY_TX
+#define MENU_HAVE_TX	1
 static const menu_tx_tile_t menu_tx_tiles[] = {
 #if CONFIG_SAME_TX
 	{ "SAME", icon_alert, SCR_SAME_TX },
@@ -5998,8 +6016,25 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #if CONFIG_RTTY_TX
 	{ "RTTY", icon_rtty, SCR_RTTY_TX },
 #endif
+#if CONFIG_POCSAG
+	{ "POCSAG", icon_pager, SCR_POCSAG_TX },
+#endif
 };
 #define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
+#endif
+
+#if CONFIG_POCSAG
+static const menu_tx_tile_t menu_rx_tiles[] = {
+	{ "POCSAG", icon_pager, SCR_POCSAG },
+};
+#define MENU_RX_TILES	(sizeof(menu_rx_tiles) / sizeof(menu_rx_tiles[0]))
+#endif
+
+#if CONFIG_FM_TRX
+static const menu_tx_tile_t menu_trx_tiles[] = {
+	{ "FM", icon_trx, SCR_FM_TRX },
+};
+#define MENU_TRX_TILES	(sizeof(menu_trx_tiles) / sizeof(menu_trx_tiles[0]))
 #endif
 
 static uint16_t menu_count(uint16_t menu)
@@ -6009,6 +6044,14 @@ static uint16_t menu_count(uint16_t menu)
 #ifdef MENU_HAVE_TX
 	if (menu == MENU_TX)
 		return MENU_TX_TILES;
+#endif
+#if CONFIG_POCSAG
+	if (menu == MENU_RX)
+		return MENU_RX_TILES;
+#endif
+#if CONFIG_FM_TRX
+	if (menu == MENU_TRX)
+		return MENU_TRX_TILES;
 #endif
 	return 0;
 }
@@ -6020,6 +6063,14 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 #ifdef MENU_HAVE_TX
 	if (menu == MENU_TX)
 		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
+#endif
+#if CONFIG_POCSAG
+	if (menu == MENU_RX)
+		return i < MENU_RX_TILES ? menu_rx_tiles[i].label : "";
+#endif
+#if CONFIG_FM_TRX
+	if (menu == MENU_TRX)
+		return i < MENU_TRX_TILES ? menu_trx_tiles[i].label : "";
 #endif
 	return "";
 }
@@ -6043,6 +6094,20 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
+#if CONFIG_POCSAG
+	if (menu == MENU_RX) {
+		if (i < MENU_RX_TILES)
+			menu_rx_tiles[i].icon(ox, oy, s, c);
+		return;
+	}
+#endif
+#if CONFIG_FM_TRX
+	if (menu == MENU_TRX) {
+		if (i < MENU_TRX_TILES)
+			menu_trx_tiles[i].icon(ox, oy, s, c);
+		return;
+	}
+#endif
 	if (menu != MENU_TOP)
 		return;
 	switch (i) {
@@ -6062,6 +6127,20 @@ static void menu_activate(uint16_t menu, uint16_t i)
 	if (menu == MENU_TX) {
 		if (i < MENU_TX_TILES)
 			ui_push(menu_tx_tiles[i].scr, 0);
+		return;
+	}
+#endif
+#if CONFIG_POCSAG
+	if (menu == MENU_RX) {
+		if (i < MENU_RX_TILES)
+			ui_push(menu_rx_tiles[i].scr, 0);
+		return;
+	}
+#endif
+#if CONFIG_FM_TRX
+	if (menu == MENU_TRX) {
+		if (i < MENU_TRX_TILES)
+			ui_push(menu_trx_tiles[i].scr, 0);
 		return;
 	}
 #endif
@@ -6091,6 +6170,10 @@ static void menu_draw(void)
 	int y1 = L->hint_y;
 	if (count != 0 && f->focus >= count)
 		f->focus = 0;
+	// More apps than one grid page: the page holding the focus
+	if (f->top >= count)
+		f->top = count > MT_SLOTS ? (uint16_t)(((count - 1) / MT_SLOTS) * MT_SLOTS) : 0;
+	int first = f->top;
 	int margin = 6;
 	int cell_w = (w - 2 * margin) / MT_COLS;
 	int cell_h = (y1 - y0 - 2 * margin) / MT_ROWS;
@@ -6100,7 +6183,8 @@ static void menu_draw(void)
 	}
 	for (int i = 0; i < MT_SLOTS; i++) {
 		int cx = margin + (i % MT_COLS) * cell_w, cy = y0 + margin + (i / MT_COLS) * cell_h;
-		bool have = i < count, sel = have && i == f->focus;
+		int idx = first + i;
+		bool have = idx < count, sel = have && idx == f->focus;
 		if (!have) {		// an empty slot: the grid is ready for the apps still to come
 			gfx_rect(cx + 4, cy + 4, cell_w - 8, cell_h - 8, ui_col.line);
 			continue;
@@ -6124,8 +6208,8 @@ static void menu_draw(void)
 		int ip = 16 * s;
 		int iy = cy + (cell_h - (ip + 4 + lab_h)) / 2;
 		int ix = cx + (cell_w - ip) / 2;
-		menu_icon(menu, (uint16_t)i, ix, iy, s, fg);
-		const char *label = menu_tile_label(menu, (uint16_t)i);
+		menu_icon(menu, (uint16_t)idx, ix, iy, s, fg);
+		const char *label = menu_tile_label(menu, (uint16_t)idx);
 		gfx_text(lf, cx + (cell_w - gfx_text_width(lf, label)) / 2, iy + ip + 4, label, fg);
 	}
 	ui_draw_banner(&ui_st);
@@ -6133,6 +6217,17 @@ static void menu_draw(void)
 		ui_draw_hint(ui_st.toast, true);
 	else
 		ui_draw_hint(count != 0 ? TR("OK pick  Back") : TR("Back"), false);
+}
+
+static void menu_page(ui_frame_t *f, uint16_t count)
+{
+	if (count <= MT_SLOTS) {
+		f->top = 0;
+	} else if (f->focus < f->top) {
+		f->top = (uint16_t)((f->focus / MT_SLOTS) * MT_SLOTS);
+	} else if (f->focus >= f->top + MT_SLOTS) {
+		f->top = (uint16_t)((f->focus / MT_SLOTS) * MT_SLOTS);
+	}
 }
 
 static bool menu_key(const input_event_t *ev)
@@ -6150,8 +6245,10 @@ static bool menu_key(const input_event_t *ev)
 		f->focus = 0;
 	if (ev->action == ACT_ENC_STEP) {
 		int dir = ev->value > 0 ? 1 : ev->value < 0 ? -1 : 0;
-		if (dir != 0)
+		if (dir != 0) {
 			f->focus = (uint16_t)((f->focus + count + dir) % count);
+			menu_page(f, count);
+		}
 		return true;
 	}
 	if (ev->gesture == GESTURE_PRESS || ev->gesture == GESTURE_REPEAT || ev->gesture == GESTURE_LONG) {
@@ -6159,18 +6256,22 @@ static bool menu_key(const input_event_t *ev)
 		case ACT_NAV_UP:
 			if (f->focus >= MT_COLS)
 				f->focus -= MT_COLS;
+			menu_page(f, count);
 			return true;
 		case ACT_NAV_DOWN:
 			if (f->focus + MT_COLS < count)
 				f->focus += MT_COLS;
+			menu_page(f, count);
 			return true;
 		case ACT_NAV_LEFT:
 			if (f->focus % MT_COLS != 0)
 				f->focus--;
+			menu_page(f, count);
 			return true;
 		case ACT_NAV_RIGHT:
 			if (f->focus % MT_COLS != MT_COLS - 1 && f->focus + 1 < count)
 				f->focus++;
+			menu_page(f, count);
 			return true;
 		default:
 			break;
@@ -6178,6 +6279,7 @@ static bool menu_key(const input_event_t *ev)
 	}
 	if (press && d >= 1 && d <= count) {
 		f->focus = (uint16_t)(d - 1);
+		menu_page(f, count);
 		return true;
 	}
 	if (press && ev->action == ACT_SELECT) {
@@ -6190,6 +6292,7 @@ static bool menu_key(const input_event_t *ev)
 static void menu_enter(void)
 {
 	ui_frame()->focus = 0;
+	ui_frame()->top = 0;
 }
 
 static const ui_scr_def_t menu_screen = {
@@ -8007,6 +8110,887 @@ static const ui_scr_def_t rtty_screen = {
 };
 #endif	// CONFIG_RTTY_TX
 
+
+#if CONFIG_POCSAG
+// ======================= POCSAG (CONFIG_POCSAG): an RX app and a TX app =======================
+// RX (SCR_POCSAG): tune the VFO to the pager channel, start the FM receive audio and decode pages in the UI tick.
+// TX (SCR_POCSAG_TX): build a page and queue it through the APRS RF service; board.pocsag_tx sends baseband 2FSK.
+// The protocol core is in core/pocsag. Defaults: 439.9875 MHz, capcode 1139775, 1200 baud, alphanumeric.
+
+static pocsag_rx_t pocsag_rx;
+static bool pocsag_active;
+static bool pocsag_new;
+static uint32_t pocsag_rx_hz = 439987500u;
+static uint8_t pocsag_rx_baud_idx;		// 0 1200, 1 512, 2 2400, 3 Auto
+static pocsag_msg_t pocsag_msgs[8];
+static uint32_t pocsag_msg_ms[8];
+static uint8_t pocsag_nmsg, pocsag_next;
+
+static const uint16_t pocsag_bauds[] = { 1200, 512, 2400, 0 };
+static const char *const pocsag_baud_names[] = { "1200", "512", "2400", "Auto" };
+
+static void pocsag_msg_store(const pocsag_msg_t *m)
+{
+	uint8_t last = pocsag_nmsg ? (uint8_t)((pocsag_next + 7u) & 7u) : 0;
+	uint32_t now = hal_millis();
+	if (pocsag_nmsg && pocsag_msgs[last].capcode == m->capcode && strcmp(pocsag_msgs[last].text, m->text) == 0 &&
+	    now - pocsag_msg_ms[last] < 2000u) {
+		return;	// the transmitter's repeats
+	}
+	pocsag_msgs[pocsag_next] = *m;
+	pocsag_msg_ms[pocsag_next] = now;
+	pocsag_next = (uint8_t)((pocsag_next + 1u) & 7u);
+	if (pocsag_nmsg < 8) {
+		pocsag_nmsg++;
+	}
+	pocsag_new = true;
+	ui_dirty();
+}
+
+static void pocsag_rx_cb(const pocsag_msg_t *m, void *ctx)
+{
+	(void)ctx;
+	pocsag_msg_store(m);
+}
+
+static void pocsag_monitor_stop(void)
+{
+	if (pocsag_active) {
+		if (board.afsk != NULL && board.afsk->rx_stop != NULL) {
+			board.afsk->rx_stop();
+		}
+		pocsag_active = false;
+	}
+}
+
+void ui_pocsag_stop(void)
+{
+	pocsag_monitor_stop();
+}
+
+static uint16_t pocsag_rx_baud(void)
+{
+	return pocsag_bauds[pocsag_rx_baud_idx & 3u];
+}
+
+static void pocsag_monitor_start(void)
+{
+	pocsag_monitor_stop();
+	pocsag_rx_init(&pocsag_rx, pocsag_rx_baud(), pocsag_rx_cb, NULL);
+	radio_req_vfo(true);
+	radio_req_vfo_set(pocsag_rx_hz);
+	radio_req_mode(RADIO_MODE_FM);
+	if (board.afsk == NULL || board.afsk->rx_start == NULL || board.afsk->rx_read == NULL) {
+		ui_toast("POCSAG RX: no audio path");
+		return;
+	}
+	if (!board.afsk->rx_start()) {
+		ui_toast("POCSAG RX: audio busy");
+		return;
+	}
+	pocsag_active = true;
+	ui_toast("Monitoring");
+}
+
+static bool pocsag_rx_tick(uint32_t now)
+{
+	(void)now;
+	if (!pocsag_active || board.afsk == NULL || board.afsk->rx_read == NULL) {
+		return false;
+	}
+	int16_t buf[160];
+	uint16_t n;
+	while ((n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0) {
+		pocsag_rx_feed(&pocsag_rx, buf, n);
+	}
+	bool redraw = pocsag_new;
+	pocsag_new = false;
+	return redraw;
+}
+
+static const char *pocsag_last_text(void)
+{
+	if (pocsag_nmsg == 0) {
+		return "-";
+	}
+	return pocsag_msgs[(pocsag_next + 7u) & 7u].text;
+}
+
+// --- RX app: the monitor ---
+
+static int8_t pocsag_rx_edit = -1;
+static char pocsag_rx_digits[UI_ENTRY_MAX + 1];
+static uint8_t pocsag_rx_len;
+
+enum { PRX_ROW_FREQ, PRX_ROW_BAUD, PRX_ROW_ACTION, PRX_ROW_PAGES, PRX_ROW_LAST, PRX_ROW_STATUS, PRX_ROW_COUNT };
+
+static void pocsag_rx_freq_digits(uint32_t hz)
+{
+	pocsag_rx_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		pocsag_rx_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	pocsag_rx_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static uint16_t pocsag_rx_count(void) { return PRX_ROW_COUNT; }
+
+static void pocsag_rx_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	switch (i) {
+	case PRX_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (pocsag_rx_edit == (int8_t)i) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, pocsag_rx_len != 0 ? pocsag_rx_digits : "type digits");
+		} else {
+			sb_freq(&b, pocsag_rx_hz);
+		}
+		break;
+	case PRX_ROW_BAUD:
+		str_copy(it->label, sizeof it->label, "Baud");
+		sb_str(&b, pocsag_baud_names[pocsag_rx_baud_idx & 3u]);
+		break;
+	case PRX_ROW_ACTION:
+		str_copy(it->label, sizeof it->label, pocsag_active ? "Stop monitor" : "Start monitor");
+		sb_str(&b, pocsag_active ? "Monitoring" : "Ready");
+		break;
+	case PRX_ROW_PAGES:
+		str_copy(it->label, sizeof it->label, "Pages heard");
+		sb_u32(&b, pocsag_nmsg, 1);
+		break;
+	case PRX_ROW_LAST:
+		str_copy(it->label, sizeof it->label, "Last page");
+		sb_str(&b, pocsag_last_text());
+		break;
+	case PRX_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, "Status");
+		if (pocsag_active) {
+			uint32_t sy = 0, w = 0;
+			for (uint8_t k = 0; k < pocsag_rx.n; k++) {
+				sy += pocsag_rx.d[k].syncs;
+				w += pocsag_rx.d[k].words;
+			}
+			sb_str(&b, "s ");
+			sb_u32(&b, pocsag_rx.samples, 1);
+			sb_str(&b, " sy ");
+			sb_u32(&b, sy, 1);
+			sb_str(&b, " w ");
+			sb_u32(&b, w, 1);
+		} else {
+			sb_str(&b, "Ready");
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void pocsag_rx_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case PRX_ROW_FREQ:
+		pocsag_rx_edit = (int8_t)i;
+		pocsag_rx_freq_digits(pocsag_rx_hz);
+		break;
+	case PRX_ROW_BAUD:
+		pocsag_rx_baud_idx = (uint8_t)((pocsag_rx_baud_idx + 1u) & 3u);
+		if (pocsag_active) {
+			pocsag_monitor_start();
+		}
+		break;
+	case PRX_ROW_ACTION:
+		if (pocsag_active) {
+			pocsag_monitor_stop();
+			ui_toast("Stopped");
+		} else {
+			pocsag_monitor_start();
+		}
+		break;
+	case PRX_ROW_PAGES:
+		ui_push(SCR_POCSAG_MSGS, 0);
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool pocsag_rx_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (pocsag_rx_edit >= 0) {
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+			(void)ui_freq_entry_digit(pocsag_rx_digits, &pocsag_rx_len, (char)('0' + d));
+			return true;
+		}
+		if (ev->action == ACT_BACK && press) {
+			if (pocsag_rx_len != 0) {
+				pocsag_rx_digits[--pocsag_rx_len] = '\0';
+			} else {
+				pocsag_rx_edit = -1;
+			}
+			return true;
+		}
+		if (ev->action == ACT_CONTEXT && press) {
+			pocsag_rx_edit = -1;
+			return true;
+		}
+		if (ev->action == ACT_SELECT && press) {
+			uint32_t hz = ui_freq_entry_hz(pocsag_rx_digits, pocsag_rx_len);
+			if (hz != 0) {
+				pocsag_rx_hz = hz;
+			}
+			pocsag_rx_edit = -1;
+			if (pocsag_active) {
+				pocsag_monitor_start();
+			}
+			return true;
+		}
+		return true;
+	}
+	if (ev->action == ACT_BACK && press && pocsag_active) {
+		pocsag_monitor_stop();
+		ui_toast("Stopped");
+	}
+	return false;	// the list's Back leaves the screen
+}
+
+static void pocsag_rx_enter(void)
+{
+	pocsag_rx_edit = -1;
+}
+
+static const ui_scr_def_t pocsag_rx_screen = {
+	.name = "pocsag-rx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("POCSAG RX"),
+	.hint = TRN("OK change  Back"),
+	.count = pocsag_rx_count, .item = pocsag_rx_item, .select = pocsag_rx_select, .key = pocsag_rx_key,
+	.enter = pocsag_rx_enter, .tick = pocsag_rx_tick,
+};
+
+// --- TX app: the encoder ---
+
+static uint32_t pocsag_tx_hz = 439987500u;
+static uint8_t pocsag_tx_baud_idx;		// 0 1200, 1 512, 2 2400
+static uint32_t pocsag_cap = 1139775u;		// the default pager
+static uint8_t pocsag_func = 3;
+static bool pocsag_alpha = true;
+static uint8_t pocsag_repeat = 1;
+static bool pocsag_invert;
+static uint8_t pocsag_level = 80;
+static char pocsag_text[POCSAG_MAX_TEXT + 1] = "TEST";
+static uint8_t pocsag_bits[APRS_AFSK_BURST_BYTES];
+static int8_t pocsag_tx_edit = -1;
+static char pocsag_tx_digits[UI_ENTRY_MAX + 2];
+static uint8_t pocsag_tx_len;
+
+enum { PTX_ROW_FREQ, PTX_ROW_BAUD, PTX_ROW_CAP, PTX_ROW_FUNC, PTX_ROW_TYPE, PTX_ROW_MSG, PTX_ROW_REPEAT,
+       PTX_ROW_INVERT, PTX_ROW_LEVEL, PTX_ROW_ACTION, PTX_ROW_STATUS, PTX_ROW_COUNT };
+
+static void pocsag_tx_freq_digits(uint32_t hz)
+{
+	pocsag_tx_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		pocsag_tx_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	pocsag_tx_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static void pocsag_tx_cap_digits(uint32_t cap)
+{
+	char tmp[8];
+	int n = 0;
+	if (cap == 0) {
+		tmp[n++] = '0';
+	} else {
+		while (cap != 0 && n < (int)sizeof tmp) {
+			tmp[n++] = (char)('0' + cap % 10u);
+			cap /= 10u;
+		}
+	}
+	pocsag_tx_len = (uint8_t)(n > 7 ? 7 : n);
+	for (uint8_t i = 0; i < pocsag_tx_len; i++) {
+		pocsag_tx_digits[i] = tmp[n - 1 - i];
+	}
+	pocsag_tx_digits[pocsag_tx_len] = '\0';
+}
+
+static uint16_t pocsag_tx_count(void) { return PTX_ROW_COUNT; }
+
+static void pocsag_tx_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = pocsag_tx_edit == (int8_t)i;
+	switch (i) {
+	case PTX_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, pocsag_tx_len != 0 ? pocsag_tx_digits : "type digits");
+		} else {
+			sb_freq(&b, pocsag_tx_hz);
+		}
+		break;
+	case PTX_ROW_BAUD:
+		str_copy(it->label, sizeof it->label, "Baud");
+		sb_str(&b, pocsag_baud_names[pocsag_tx_baud_idx % 3u]);
+		break;
+	case PTX_ROW_CAP:
+		str_copy(it->label, sizeof it->label, "Capcode");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, pocsag_tx_len != 0 ? pocsag_tx_digits : "type digits");
+		} else {
+			sb_u32(&b, pocsag_cap, 1);
+		}
+		break;
+	case PTX_ROW_FUNC:
+		str_copy(it->label, sizeof it->label, "Function");
+		sb_u32(&b, pocsag_func, 1);
+		break;
+	case PTX_ROW_TYPE:
+		str_copy(it->label, sizeof it->label, "Type");
+		sb_str(&b, pocsag_alpha ? "Alphanumeric" : "Numeric");
+		break;
+	case PTX_ROW_MSG:
+		str_copy(it->label, sizeof it->label, "Message");
+		sb_str(&b, pocsag_text[0] != '\0' ? pocsag_text : "-");
+		break;
+	case PTX_ROW_REPEAT:
+		str_copy(it->label, sizeof it->label, "Repeat");
+		sb_u32(&b, pocsag_repeat, 1);
+		break;
+	case PTX_ROW_INVERT:
+		str_copy(it->label, sizeof it->label, "Invert");
+		sb_str(&b, pocsag_invert ? "Yes" : "No");
+		break;
+	case PTX_ROW_LEVEL:
+		str_copy(it->label, sizeof it->label, "Level");
+		sb_u32(&b, pocsag_level, 1);
+		break;
+	case PTX_ROW_ACTION:
+		str_copy(it->label, sizeof it->label, "Send page");
+		sb_str(&b, ui_view()->state == RS_TX ? "Sending" : "Ready");
+		break;
+	case PTX_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, "Status");
+		sb_str(&b, ui_view()->state == RS_TX ? "Sending" : "Ready");
+		break;
+	default:
+		break;
+	}
+}
+
+static void pocsag_send(void)
+{
+	if (pocsag_text[0] == '\0') {
+		ui_toast("Type a message");
+		return;
+	}
+	uint16_t baud = pocsag_bauds[pocsag_tx_baud_idx % 3u];
+	pocsag_monitor_stop();
+	// Invert is the RF polarity only (the HAL flips the waveform); the encoder's data stays standard.
+	pocsag_tx_cfg_t c = {
+		.capcode = pocsag_cap, .func = pocsag_func, .alpha = pocsag_alpha, .baud = baud,
+		.repeat = pocsag_repeat, .invert = false, .text = pocsag_text,
+	};
+	uint16_t nbits = 0;
+	if (!pocsag_build(&c, pocsag_bits, (uint16_t)(8u * sizeof pocsag_bits), &nbits)) {
+		ui_toast("Page too long");
+		return;
+	}
+	uint32_t ms = (uint32_t)nbits * 1000u / baud + 1500u;
+	if (aprs_queue_pocsag_burst(pocsag_tx_hz, pocsag_bits, nbits, baud, pocsag_invert, pocsag_level, ms)) {
+		ui_toast("Sending");
+	} else {
+		ui_toast(TR("Busy"));
+	}
+}
+
+static void pocsag_tx_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case PTX_ROW_FREQ:
+		pocsag_tx_edit = (int8_t)i;
+		pocsag_tx_freq_digits(pocsag_tx_hz);
+		break;
+	case PTX_ROW_BAUD:
+		pocsag_tx_baud_idx = (uint8_t)((pocsag_tx_baud_idx + 1u) % 3u);
+		break;
+	case PTX_ROW_CAP:
+		pocsag_tx_edit = (int8_t)i;
+		pocsag_tx_cap_digits(pocsag_cap);
+		break;
+	case PTX_ROW_FUNC:
+		pocsag_func = (uint8_t)((pocsag_func + 1u) & 3u);
+		break;
+	case PTX_ROW_TYPE:
+		pocsag_alpha = !pocsag_alpha;
+		pocsag_func = pocsag_alpha ? 3 : 0;
+		break;
+	case PTX_ROW_MSG:
+		ui_text_open_title(pocsag_text, POCSAG_MAX_TEXT, "POCSAG message");
+		break;
+	case PTX_ROW_REPEAT:
+		pocsag_repeat = (uint8_t)(pocsag_repeat >= 4u ? 1u : pocsag_repeat + 1u);
+		break;
+	case PTX_ROW_INVERT:
+		pocsag_invert = !pocsag_invert;
+		break;
+	case PTX_ROW_LEVEL:
+		pocsag_level = (uint8_t)(pocsag_level >= 100u ? 10u : pocsag_level + 10u);
+		break;
+	case PTX_ROW_ACTION:
+		pocsag_send();
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static void pocsag_tx_commit(void)
+{
+	if (pocsag_tx_edit == PTX_ROW_FREQ) {
+		uint32_t hz = ui_freq_entry_hz(pocsag_tx_digits, pocsag_tx_len);
+		if (hz != 0) {
+			pocsag_tx_hz = hz;
+		}
+	} else if (pocsag_tx_edit == PTX_ROW_CAP) {
+		uint32_t v = 0;
+		for (uint8_t i = 0; i < pocsag_tx_len; i++) {
+			v = v * 10u + (uint32_t)(pocsag_tx_digits[i] - '0');
+		}
+		if (v <= 0x1FFFFFu) {
+			pocsag_cap = v;
+		} else {
+			ui_toast("Capcode too big");
+		}
+	}
+}
+
+static bool pocsag_tx_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (pocsag_tx_edit >= 0) {
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+			if (pocsag_tx_edit == PTX_ROW_FREQ) {
+				(void)ui_freq_entry_digit(pocsag_tx_digits, &pocsag_tx_len, (char)('0' + d));
+			} else if (pocsag_tx_len < 7) {
+				pocsag_tx_digits[pocsag_tx_len++] = (char)('0' + d);
+				pocsag_tx_digits[pocsag_tx_len] = '\0';
+			}
+			return true;
+		}
+		if (ev->action == ACT_BACK && press) {
+			if (pocsag_tx_len != 0) {
+				pocsag_tx_digits[--pocsag_tx_len] = '\0';
+			} else {
+				pocsag_tx_edit = -1;
+			}
+			return true;
+		}
+		if (ev->action == ACT_CONTEXT && press) {
+			pocsag_tx_edit = -1;
+			return true;
+		}
+		if (ev->action == ACT_SELECT && press) {
+			pocsag_tx_commit();
+			pocsag_tx_edit = -1;
+			return true;
+		}
+		return true;
+	}
+	return false;
+}
+
+static void pocsag_tx_enter(void)
+{
+	pocsag_tx_edit = -1;
+}
+
+static const ui_scr_def_t pocsag_tx_screen = {
+	.name = "pocsag-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("POCSAG TX"),
+	.hint = TRN("OK change  Back"),
+	.count = pocsag_tx_count, .item = pocsag_tx_item, .select = pocsag_tx_select, .key = pocsag_tx_key,
+	.enter = pocsag_tx_enter,
+};
+
+// --- the pages the receiver heard ---
+
+static uint16_t pocsag_pages_count(void)
+{
+	return pocsag_nmsg;
+}
+
+static void pocsag_pages_item(uint16_t i, ui_item_t *it)
+{
+	if (i >= pocsag_nmsg) {
+		return;
+	}
+	uint8_t idx = (uint8_t)((pocsag_next + 8u - 1u - i) & 7u);
+	sbuf_t b;
+	sb_init(&b, it->label, sizeof it->label);
+	sb_str(&b, "Cap ");
+	sb_u32(&b, pocsag_msgs[idx].capcode, 1);
+	str_copy(it->value, sizeof it->value, pocsag_msgs[idx].text);
+}
+
+static const ui_scr_def_t pocsag_pages_screen = {
+	.name = "pocsag-pages", .flags = SF_LIST, .prefix = TRN("POCSAG Pages"), .hint = TRN("Back"),
+	.empty = TRN("No pages yet"), .count = pocsag_pages_count, .item = pocsag_pages_item, .tick = pocsag_rx_tick,
+};
+#endif	// CONFIG_POCSAG
+
+#if CONFIG_FM_TRX
+// ======================= The FM transceiver (CONFIG_FM_TRX) =======================
+// A tuned VFO with live PTT. Everywhere else PTT is blocked, and a CONFIG_NO_PTT build blocks it outright; this
+// screen lets it through with ui_svc_ptt_allow while it is on top, so it is the one place the radio can talk by hand.
+
+enum {
+	FMTX_ROW_TX, FMTX_ROW_RX, FMTX_ROW_OFFSET,
+#if CONFIG_SUBTONE
+	FMTX_ROW_RX_TONE, FMTX_ROW_TX_TONE,
+#endif
+	FMTX_ROW_SIGNAL, FMTX_ROW_COUNT
+};
+
+static uint32_t fm_trx_hz = 145500000u;
+static int8_t fm_trx_edit = -1;			// the row being typed (FREQ or SHIFT)
+static char fm_trx_digits[UI_ENTRY_MAX + 1];
+static uint8_t fm_trx_len;
+static uint8_t fm_trx_last_state;
+static int16_t fm_trx_last_rssi;
+static uint32_t fm_trx_last_rx, fm_trx_last_tx;
+
+static void fm_trx_freq_digits(uint32_t hz)
+{
+	fm_trx_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		fm_trx_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	fm_trx_digits[UI_ENTRY_MAX] = '\0';
+}
+
+// The usual repeater offsets of rx's band, most common first (as ui_app.c's quick split tile)
+static uint8_t fm_trx_offsets(uint32_t rx, uint32_t *off)
+{
+	if (rx < 200000000u) {
+		off[0] = 600000u;
+		off[1] = 1000000u;
+		return 2;
+	}
+	if (rx < 300000000u) {
+		off[0] = 1600000u;
+		return 1;
+	}
+	off[0] = 5000000u;
+	off[1] = 7600000u;
+	off[2] = 1600000u;
+	return 3;
+}
+
+// Steps a line out from Simplex through the band's usual offsets (Off, +k, -k, wrapping), skipping a TX outside RX's
+// TX band
+static void fm_trx_split_step(int8_t dir)
+{
+	const radio_view_t *v = ui_view();
+	uint32_t rx = v->ch.rx_hz, tx = v->ch.tx_hz;
+	uint32_t off[3];
+	int n = fm_trx_offsets(rx, off);
+	int pos = n;			// Simplex; Off is n, +k is n + k, -k is n - k
+	if (tx != rx) {
+		uint32_t cur = tx > rx ? tx - rx : rx - tx;
+		for (int k = 0; k < n; k++) {
+			if (off[k] == cur) {
+				pos = tx > rx ? n + k + 1 : n - k - 1;
+			}
+		}
+	}
+	int total = 2 * n + 1;
+	pos = (pos + dir + total) % total;
+	for (int tries = 0; tries < total; tries++) {
+		int at = pos - n;
+		uint32_t hz = at == 0 ? rx : at > 0 ? rx + off[at - 1] : rx - off[-at - 1];
+		if (at == 0 || (board_tx_band(rx) >= 0 && board_tx_band(hz) == board_tx_band(rx))) {
+			radio_req_vfo_tx(at == 0 ? 0 : hz);
+			return;
+		}
+		pos = (pos + (dir >= 0 ? 1 : total - 1)) % total;
+	}
+}
+
+#if CONFIG_SUBTONE
+// CTCSS only (the 50 standard tones and Off), so the picker is short enough to step through
+static subtone_t fm_trx_tone_step(subtone_t t, int dir)
+{
+	int s = 0;
+	if (t.type == TONE_CTCSS) {
+		for (int k = 0; k < TONES_CTCSS_COUNT; k++) {
+			if (tones_ctcss[k] == t.value) {
+				s = k + 1;
+				break;
+			}
+		}
+	}
+	s = (s + dir + (TONES_CTCSS_COUNT + 1)) % (TONES_CTCSS_COUNT + 1);
+	return s == 0 ? (subtone_t){ TONE_NONE, 0 } : (subtone_t){ TONE_CTCSS, tones_ctcss[s - 1] };
+}
+
+static void fm_trx_set_tone(uint8_t which, subtone_t t)
+{
+	radio_req_tone(which, t);
+	ui_dirty();
+}
+#endif
+
+static uint16_t fm_trx_count(void) { return FMTX_ROW_COUNT; }
+
+static void fm_trx_item(uint16_t i, ui_item_t *it)
+{
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	const radio_view_t *v = ui_view();
+	bool edit = fm_trx_edit == (int8_t)i;
+	switch (i) {
+	case FMTX_ROW_RX:
+		str_copy(it->label, sizeof it->label, "RX");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, fm_trx_len != 0 ? fm_trx_digits : "type digits");
+		} else {
+			sb_freq(&b, v->ch.rx_hz != 0 ? v->ch.rx_hz : fm_trx_hz);
+		}
+		break;
+	case FMTX_ROW_OFFSET:
+		str_copy(it->label, sizeof it->label, "Offset");
+		sb_split(&b, v->ch.rx_hz, v->ch.tx_hz);
+		break;
+	case FMTX_ROW_TX:
+		str_copy(it->label, sizeof it->label, "TX");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, fm_trx_len != 0 ? fm_trx_digits : "type digits");
+		} else {
+			sb_freq(&b, v->ch.tx_hz != 0 ? v->ch.tx_hz : v->ch.rx_hz);
+		}
+		break;
+#if CONFIG_SUBTONE
+	case FMTX_ROW_RX_TONE:
+		str_copy(it->label, sizeof it->label, "CTCSS RX");
+		if (v->ch.rx_tone.type == TONE_NONE) {
+			sb_str(&b, "Off");
+		} else {
+			sb_tone(&b, &v->ch.rx_tone);
+		}
+		break;
+	case FMTX_ROW_TX_TONE:
+		str_copy(it->label, sizeof it->label, "CTCSS TX");
+		if (v->ch.tx_tone.type == TONE_NONE) {
+			sb_str(&b, "Off");
+		} else {
+			sb_tone(&b, &v->ch.tx_tone);
+		}
+		break;
+#endif
+	case FMTX_ROW_SIGNAL:
+		str_copy(it->label, sizeof it->label, "Signal");
+		if (v->rssi_dbm != 0) {
+			sb_i32(&b, v->rssi_dbm);
+			sb_str(&b, " dBm");
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void fm_trx_edit_start(uint16_t row)
+{
+	const radio_view_t *v = ui_view();
+	fm_trx_edit = (int8_t)row;
+	uint32_t hz = row == FMTX_ROW_TX ? (v->ch.tx_hz != 0 ? v->ch.tx_hz : v->ch.rx_hz) : v->ch.rx_hz;
+	fm_trx_freq_digits(hz != 0 ? hz : fm_trx_hz);
+	ui_dirty();
+}
+
+static void fm_trx_select(uint16_t i, bool hold)
+{
+	const radio_view_t *v = ui_view();
+	switch (i) {
+	case FMTX_ROW_RX:
+	case FMTX_ROW_TX:
+		fm_trx_edit_start(i);
+		break;
+	case FMTX_ROW_OFFSET:
+		if (hold) {
+			radio_req_vfo_tx(0);	// back to Simplex
+		} else {
+			fm_trx_split_step(1);
+		}
+		ui_dirty();
+		break;
+#if CONFIG_SUBTONE
+	case FMTX_ROW_RX_TONE:
+		fm_trx_set_tone(RADIO_TONE_RX, hold ? (subtone_t){ TONE_NONE, 0 } : fm_trx_tone_step(v->ch.rx_tone, 1));
+		break;
+	case FMTX_ROW_TX_TONE:
+		fm_trx_set_tone(RADIO_TONE_TX, hold ? (subtone_t){ TONE_NONE, 0 } : fm_trx_tone_step(v->ch.tx_tone, 1));
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
+static bool fm_trx_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (fm_trx_edit >= 0) {
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+			if (fm_trx_len >= UI_ENTRY_MAX) {
+				fm_trx_len = 0;		// the first digit replaces the value shown, rather than appending to it
+			}
+			(void)ui_freq_entry_digit(fm_trx_digits, &fm_trx_len, (char)('0' + d));
+			return true;
+		}
+		if (ev->action == ACT_BACK && press) {
+			if (fm_trx_len != 0) {
+				fm_trx_digits[--fm_trx_len] = '\0';
+			} else {
+				fm_trx_edit = -1;
+			}
+			return true;
+		}
+		if (ev->action == ACT_CONTEXT && press) {
+			fm_trx_edit = -1;
+			return true;
+		}
+		if (ev->action == ACT_SELECT && press) {
+			uint32_t hz = ui_freq_entry_hz(fm_trx_digits, fm_trx_len);
+			if (hz != 0) {
+				if (fm_trx_edit == FMTX_ROW_RX) {
+					fm_trx_hz = hz;
+					radio_req_vfo_set(hz);	// keeps the offset, so a repeater stays one
+				} else if (!board_in_band(hz, true)) {
+					ui_toast(TR("Can't transmit there"));
+				} else {
+					radio_req_vfo_tx(hz == ui_view()->ch.rx_hz ? 0 : hz);
+				}
+			}
+			fm_trx_edit = -1;
+			return true;
+		}
+		return true;		// while a value is being typed it owns the keys
+	}
+	{
+		// Any digit starts a frequency: "just enter the frequency" from any row (no number accelerators here)
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && press) {
+			uint16_t row = ui_frame()->focus;
+			if (row != FMTX_ROW_TX && row != FMTX_ROW_RX)
+				row = FMTX_ROW_RX;
+			fm_trx_edit = (int8_t)row;
+			fm_trx_len = 0;
+			fm_trx_digits[0] = '\0';
+			ui_frame()->focus = row;
+			(void)ui_freq_entry_digit(fm_trx_digits, &fm_trx_len, (char)('0' + d));
+			ui_dirty();
+			return true;
+		}
+	}
+	if (press && (ev->action == ACT_NAV_LEFT || ev->action == ACT_NAV_RIGHT)) {
+		int dir = ev->action == ACT_NAV_RIGHT ? 1 : -1;
+		uint16_t focus = ui_frame()->focus;
+		if (focus == FMTX_ROW_OFFSET) {
+			fm_trx_split_step((int8_t)dir);
+			ui_dirty();
+			return true;
+		}
+#if CONFIG_SUBTONE
+		if (focus == FMTX_ROW_RX_TONE) {
+			fm_trx_set_tone(RADIO_TONE_RX, fm_trx_tone_step(ui_view()->ch.rx_tone, dir));
+			return true;
+		}
+		if (focus == FMTX_ROW_TX_TONE) {
+			fm_trx_set_tone(RADIO_TONE_TX, fm_trx_tone_step(ui_view()->ch.tx_tone, dir));
+			return true;
+		}
+#endif
+	}
+	return false;
+}
+
+static void fm_trx_enter(void)
+{
+	fm_trx_edit = -1;
+	const radio_view_t *v = ui_view();
+	if (v->vfo && v->ch.rx_hz != 0) {
+		fm_trx_hz = v->ch.rx_hz;	// carry on from the VFO the user was on
+	}
+	radio_req_vfo(true);
+	radio_req_mode(RADIO_MODE_FM);
+	radio_req_vfo_set(fm_trx_hz);
+	fm_trx_last_state = v->state;
+	fm_trx_last_rssi = v->rssi_dbm;
+	fm_trx_last_rx = v->ch.rx_hz;
+	fm_trx_last_tx = v->ch.tx_hz;
+	ui_svc_ptt_allow(true);
+	ui_svc_ptt_block(false);
+}
+
+static void fm_trx_leave(void)
+{
+	ui_svc_ptt_allow(false);
+	ui_svc_ptt_block((ui_st.locked && !ui_st.ptt_locked) || ui_svc_bbs_running());
+}
+
+static bool fm_trx_tick(uint32_t now)
+{
+	(void)now;
+	const radio_view_t *v = ui_view();
+	if (v->state == fm_trx_last_state && v->rssi_dbm == fm_trx_last_rssi &&
+	    v->ch.rx_hz == fm_trx_last_rx && v->ch.tx_hz == fm_trx_last_tx) {
+		return false;
+	}
+	fm_trx_last_state = v->state;
+	fm_trx_last_rssi = v->rssi_dbm;
+	fm_trx_last_rx = v->ch.rx_hz;
+	fm_trx_last_tx = v->ch.tx_hz;
+	return true;
+}
+
+static const char *fm_trx_body(void)
+{
+	return TR("Hold PTT to talk");
+}
+
+static const ui_scr_def_t fm_trx_screen = {
+	.name = "fm-trx", .flags = SF_LIST | SF_FIELD, .prefix = TRN("FM"),
+	.hint = TRN("PTT talk  OK change  Back"),
+	.count = fm_trx_count, .item = fm_trx_item, .select = fm_trx_select, .key = fm_trx_key,
+	.enter = fm_trx_enter, .leave = fm_trx_leave, .tick = fm_trx_tick, .body = fm_trx_body,
+};
+#endif	// CONFIG_FM_TRX
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -8041,6 +9025,12 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_RTTY_TX
 	[SCR_RTTY_TX] = &rtty_screen,
+#endif
+#if CONFIG_POCSAG
+	[SCR_POCSAG] = &pocsag_rx_screen, [SCR_POCSAG_TX] = &pocsag_tx_screen, [SCR_POCSAG_MSGS] = &pocsag_pages_screen,
+#endif
+#if CONFIG_FM_TRX
+	[SCR_FM_TRX] = &fm_trx_screen,
 #endif
 #if CONFIG_REF_TRIM
 	[SCR_REF_TRIM] = &trim_screen,

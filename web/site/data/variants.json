@@ -1,0 +1,56 @@
+{
+  "variants": [
+    {
+      "id": "full",
+      "title": "Full",
+      "summary": "Every feature the radio supports.",
+      "off": []
+    },
+    {
+      "id": "amateur",
+      "title": "Amateur",
+      "summary": "For amateur radio. Leaves out business features.",
+      "off": [
+        {
+          "name": "DMR_PRIVACY",
+          "why": "Encryption that hides the meaning of a message isn't allowed on the amateur bands in most countries"
+        },
+        {
+          "name": "DMR_TMS",
+          "why": "Motorola text message format: business radio fleets and dispatch software"
+        },
+        {
+          "name": "DMR_ARS",
+          "why": "Registration with a presence server: dispatch systems"
+        },
+        {
+          "name": "DMR_LRRP",
+          "why": "Location request and response for dispatch software (APRS covers positions on the amateur bands)"
+        },
+        {
+          "name": "DMR_CONTROL_STATION",
+          "why": "Control station mode for PC dispatch software"
+        },
+        {
+          "name": "SNMP",
+          "why": "Network management for fleets of radios"
+        }
+      ]
+    },
+    {
+      "id": "commercial",
+      "title": "Commercial",
+      "summary": "For business and public service radios. Leaves out amateur-only features.",
+      "off": [
+        {
+          "name": "HOTSPOT",
+          "why": "The MMDVM hotspot links the radio to amateur networks (BrandMeister, TGIF) through a PC; split duplex goes with it"
+        },
+        {
+          "name": "APRS",
+          "why": "APRS is an amateur radio service; KISS over TCP and the APRS-IS client go with it"
+        }
+      ]
+    }
+  ]
+}

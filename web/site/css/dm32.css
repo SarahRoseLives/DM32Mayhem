@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: MIT */
+/* DM32Mayhem flasher chrome: the page around RadioFoundry's flasher components */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: var(--line); }
+.dm-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+	max-width: var(--wrap); margin: 0 auto; padding: var(--space-4); }
+.dm-brand { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
+.dm-brand span { color: var(--accent); }
+.dm-head nav a { margin-left: var(--space-5); color: var(--muted); text-decoration: none; font-size: var(--text-sm); }
+.dm-head nav a:hover { color: var(--text); }
+.dm-main { max-width: 900px; margin: 0 auto; padding: 0 var(--gutter) var(--space-7); }
+.dm-intro h1 { font-size: var(--h1); margin: var(--space-2) 0; }
+.dm-intro p { max-width: 72ch; color: var(--muted); }
+.dm-warn { border-left: 3px solid var(--warn); background: var(--warn-soft); color: var(--text);
+	padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
+.dm-foot { border-top: 1px solid var(--border); margin-top: var(--space-7); padding: var(--space-5) var(--gutter);
+	color: var(--muted); font-size: var(--text-sm); text-align: center; }
+.dm-foot a { color: var(--link); }
+#flasher { margin-top: var(--space-5); }
+@media (max-width: 600px) { .dm-head nav a:last-child { display: none; } }
+.dm-error { position: sticky; top: 0; z-index: 10; margin: 0; padding: var(--space-2) var(--gutter);
+	background: var(--bad); color: #fff; font-size: var(--text-sm); }

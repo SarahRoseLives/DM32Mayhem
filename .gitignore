@@ -14,3 +14,12 @@ firmware/codecs/*.bin
 firmware/codecs/*.codec
 *.dfu
 *.ambe
+
+# Local handoff/runbook for the website (not part of the repository)
+/AGENT-WEBSITE-UPDATE.md
+
+# Built web server binary (web/tools/build.sh)
+web/build/
+
+# Session handoff notes (local; see AGENT-WEBSITE-UPDATE.md for the website runbook)
+/AGENT-SESSION-HANDOFF.md

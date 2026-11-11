@@ -112,6 +112,9 @@ endif
 ifeq ($(CONFIG_RTTY_TX),y)
 CORE_DIRS += core/rtty
 endif
+ifeq ($(CONFIG_POCSAG),y)
+CORE_DIRS += core/pocsag
+endif
 ifeq ($(CONFIG_SNMP),y)
 CORE_DIRS += core/snmp
 endif

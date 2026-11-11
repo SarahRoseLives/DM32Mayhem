@@ -30,6 +30,9 @@ extern const hal_ook_t dm32_ook;
 #if CONFIG_P25CC_TX
 extern const hal_p25_tx_t dm32_p25_tx;
 #endif
+#if CONFIG_POCSAG
+extern const hal_pocsag_tx_t dm32_pocsag_tx;
+#endif
 extern const hal_power_t dm32_power;
 
 // Physical key bits returned by dm32_input.scan() (matrix in docs/spec/hardware-dm32.md 6.1, 6.2)

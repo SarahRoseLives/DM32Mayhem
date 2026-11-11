@@ -214,6 +214,8 @@ void ui_push(uint8_t scr, uint16_t arg)
 {
 	if (sp + 1 >= UI_STACK_MAX)
 		sp = UI_STACK_MAX - 2;	// never deeper than the stack: the oldest levels stay, the newest is replaced
+	if (ui_scr[stack[sp].scr]->leave != NULL)
+		ui_scr[stack[sp].scr]->leave();
 	sp++;
 	stack[sp].scr = scr;
 	stack[sp].arg = arg;
@@ -259,6 +261,8 @@ static void cp_question_gone(uint8_t from)
 void ui_pop(void)
 {
 	cp_question_gone(sp);
+	if (ui_scr[stack[sp].scr]->leave != NULL)
+		ui_scr[stack[sp].scr]->leave();
 	if (sp > 0)
 		sp--;
 	if (ui_scr[stack[sp].scr]->flags & SF_FILTER)
@@ -271,9 +275,16 @@ void ui_pop(void)
 	dirty = true;
 }
 
+__attribute__((weak)) void ui_pocsag_stop(void) { }
+
 void ui_go_home(void)
 {
+	ui_pocsag_stop();
 	cp_question_gone(1);
+	for (uint8_t i = sp; i > 0; i--) {
+		if (ui_scr[stack[i].scr]->leave != NULL)
+			ui_scr[stack[i].scr]->leave();
+	}
 	sp = 0;
 	ui_st.quick_edit = false;
 	entry_cancel();
@@ -2311,6 +2322,12 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 #endif
 	now = now_ms;
 	ui_st.now_ms = now_ms;
+	{
+		const ui_scr_def_t *d = ui_scr[stack[sp].scr];
+		if (d->tick != NULL && d->tick(now_ms)) {
+			dirty = true;
+		}
+	}
 #if CONFIG_BOOT_GATE
 	if (gate_locked) {
 		last_use_ms = now_ms;	// typing the code is use: no auto power off while the gate is up

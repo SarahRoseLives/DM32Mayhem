@@ -18,6 +18,13 @@
 
 #define DAC_C_INIT		0x06E2u
 
+// The FD6818 AF filter (0x2B). The FM voice set-up (0xC000) high-passes around 300 Hz, which differentiates POCSAG's
+// NRZ and leaves it undecodable; the digital set-up's 0x0700 passes the discriminator flat. Use the flat one while the
+// modem takes the receive audio, and the voice one otherwise.
+#define FD_AF_FILTER_REG	0x2Bu
+#define FD_AF_VOICE		0xC000u
+#define FD_AF_FLAT		0x8707u
+
 #define UHF_FROM_HZ		280000000u	// PA / LNA band split (8.5)
 #define MIC_GAIN_DB		11u		// GCR_ADCL at init (9.1)
 #define DMR_PA_DELAY_US		28000u		// "DMR PA" default (8.6)
@@ -288,6 +295,9 @@ static bool rx_tune(uint32_t hz, radio_bw_t bw, const subtone_t *tone, bool am)
 			fd6818_set_am(&fd, am);
 			rx_am_on = am;
 		}
+		if (aprs_listen || p25_listen) {
+			fd6818_write(&fd, FD_AF_FILTER_REG, FD_AF_FLAT);	// the modem taps the FM audio: no voice high-pass
+		}
 	}
 	rx_hz = hz;
 	rx_bw = bw;
@@ -465,6 +475,7 @@ static void aprs_listen_route(bool on)
 {
 	uint32_t s = hrc_irq_save();	// dm32_speaker_pcm runs speaker_source from the audio task
 	aprs_listen = on;
+	fd6818_write(&fd, FD_AF_FILTER_REG, (aprs_listen || p25_listen) ? FD_AF_FLAT : FD_AF_VOICE);
 	if (rx_audio) {
 		amp(AMP_RADIO, false);	// the source changes under an open squelch: no click
 	}
@@ -489,6 +500,7 @@ static bool audio_to_modem(bool on)
 		fd6818_set_bandwidth(&fd, FD6818_BW_FM_12K5);	// the mode table forces 25 kHz
 	}
 	p25_listen = on;
+	fd6818_write(&fd, FD_AF_FILTER_REG, (aprs_listen || p25_listen) ? FD_AF_FLAT : FD_AF_VOICE);
 	if (rx_audio) {
 		amp(AMP_RADIO, false);	// the source changes under an open squelch: no click
 	}
@@ -564,10 +576,12 @@ static bool afsk_tx_route(bool on)
 		return false;
 	}
 	afsk_tx = on;
-	hrc7000_codec_mute(&modem, on, false);
+	// POCSAG is flat baseband: leave the codec alone and only enable the prompt FIFO path. The codec mute/shaping
+	// was distorting the second half of the page.
 	ring_play();
 	return true;
 }
+
 #endif
 
 #if CONFIG_OOK_TX
@@ -743,6 +757,129 @@ const hal_p25_tx_t dm32_p25_tx = {
 	.stop = p25_stop,
 };
 #endif	// CONFIG_P25CC_TX
+
+#if CONFIG_POCSAG
+// POCSAG TX through the modem's physical-layer transmitter (the same direct 4FSK path as the P25 CC). The PHY sends
+// two-bit symbols at 4800/s, so a POCSAG bit is held for 4800/baud symbols (+3 for 0, -3 for 1), packed four dibits
+// per byte. The fractional accumulator keeps 512/1200/2400 exact. No codec or prompt FIFO is involved: this is the
+// flat modulator path that the pager expects.
+#define POCSAG_PHY_BLOCK 36u
+#define POCSAG_SYMBOL_RATE 4800u
+static const uint8_t *pocsag_bits;
+static uint16_t pocsag_nbits, pocsag_pos, pocsag_baud;
+static uint32_t pocsag_phase;		// Q0 fraction of a bit, in 1/4800 symbol
+static volatile bool pocsag_busy;
+static bool pocsag_irq_set, pocsag_invert;
+static uint8_t pocsag_half;
+static uint32_t pocsag_wm_saved, pocsag_l2_saved, pocsag_txrx_saved, pocsag_dev_saved, pocsag_bias_saved;
+
+static void pocsag_block(uint8_t half)
+{
+	uint32_t off = C7_TX_RAM + (half ? 0x24u : 0x00u);
+	for (uint16_t i = 0; i < POCSAG_PHY_BLOCK; i++) {
+		uint8_t b = 0;
+		for (int k = 0; k < 4; k++) {
+			bool bit = false;
+			if (pocsag_pos < pocsag_nbits) {
+				bit = (pocsag_bits[pocsag_pos >> 3] >> (7u - (pocsag_pos & 7u))) & 1u;
+				pocsag_phase += pocsag_baud;
+				if (pocsag_phase >= POCSAG_SYMBOL_RATE) {
+					pocsag_phase -= POCSAG_SYMBOL_RATE;
+					pocsag_pos++;
+				}
+			}
+			if (pocsag_invert) {
+				bit = !bit;
+			}
+			b = (uint8_t)((b << 2) | (bit ? 3u : 1u));	// 11 = -3, 01 = +3
+		}
+		modem.buf[off + i] = b;
+	}
+}
+
+static void pocsag_tick(void)
+{
+	hrc_timer_ack(6);
+	if (!pocsag_busy) {
+		return;
+	}
+	pocsag_block(pocsag_half);
+	pocsag_half ^= 1u;
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x81u);
+}
+
+static bool pocsag_start(const uint8_t *bits, uint16_t nbits, uint16_t baud, bool invert, uint8_t level)
+{
+	if (!transmitting || mode != RADIO_MODE_FM || pocsag_busy || bits == NULL || nbits == 0 || baud == 0 ||
+			baud > POCSAG_SYMBOL_RATE) {
+		return false;
+	}
+	if (!afsk_tx_route(true)) {
+		return false;
+	}
+	pocsag_wm_saved = hrc7000_rd(&modem, C7_WORK_MODE);
+	pocsag_l2_saved = hrc7000_rd(&modem, C7_LAYER2_CONTROL);
+	pocsag_txrx_saved = hrc7000_rd(&modem, C7_LAYER2_TXRX_CTRL);
+	// The PHY 4FSK deviation comes from the two-point modulation amplitude (RF_MOD_BIAS b15:8 / b7:0),
+	// not FM_DEV_COEF (that is the FM audio path). The factory calibration is for P25's ~1.8 kHz, so scale it
+	// up for POCSAG's ~4.5 kHz; the app's level sweeps it.
+	pocsag_dev_saved = hrc7000_rd(&modem, C7_FM_DEV_COEF);
+	pocsag_bias_saved = hrc7000_rd(&modem, C7_RF_MOD_BIAS);
+	uint8_t dev = level > 100u ? 100u : level;
+	uint32_t f = 100u + ((uint32_t)dev * 110u) / 100u;	// 1.00x at 0, ~1.9x at 80
+	uint32_t sig = ((pocsag_bias_saved >> 8) & 0xFFu) * f / 100u;
+	uint32_t ph = (pocsag_bias_saved & 0xFFu) * f / 100u;
+	hrc7000_wr(&modem, C7_RF_MOD_BIAS, (pocsag_bias_saved & ~0xFFFFu) |
+		   ((sig > 0xFFu ? 0xFFu : sig) << 8) | (ph > 0xFFu ? 0xFFu : ph));
+	pocsag_bits = bits;
+	pocsag_nbits = nbits;
+	pocsag_pos = 0;
+	pocsag_baud = baud;
+	pocsag_phase = 0;
+	pocsag_half = 0;
+	pocsag_invert = invert;
+	pocsag_block(0);
+	pocsag_block(1);
+	hrc7000_wr(&modem, C7_WORK_MODE, C7_WORK_MODE_FM);
+	hrc7000_wr(&modem, C7_WORK_MODE, 0x02u);	// physical layer, continuous
+	hrc7000_wr(&modem, C7_LAYER2_CONTROL, 0x82u);
+	hrc7000_wr(&modem, C7_AUDIO_BUFFER_CLR, 0x03u);
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x81u);
+	pocsag_busy = true;
+	if (!pocsag_irq_set) {
+		hrc_irq_register(IRQ_TIMER6, pocsag_tick);
+		hrc_irq_enable(IRQ_TIMER6, true);
+		pocsag_irq_set = true;
+	}
+	hrc_timer_periodic(6, 30000u);
+	return true;
+}
+
+static bool pocsag_busy_fn(void)
+{
+	return pocsag_busy;
+}
+
+static void pocsag_stop(void)
+{
+	hrc_timer_stop(6);
+	pocsag_busy = false;
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, 0x00u);
+	hrc7000_wr(&modem, C7_WORK_MODE, C7_WORK_MODE_FM);
+	hrc7000_wr(&modem, C7_LAYER2_CONTROL, pocsag_l2_saved);
+	hrc7000_wr(&modem, C7_LAYER2_TXRX_CTRL, pocsag_txrx_saved);
+	hrc7000_wr(&modem, C7_FM_DEV_COEF, pocsag_dev_saved);
+	hrc7000_wr(&modem, C7_RF_MOD_BIAS, pocsag_bias_saved);
+	hrc7000_wr(&modem, C7_WORK_MODE, pocsag_wm_saved);
+	afsk_tx_route(false);
+}
+
+const hal_pocsag_tx_t dm32_pocsag_tx = {
+	.start = pocsag_start,
+	.busy = pocsag_busy_fn,
+	.stop = pocsag_stop,
+};
+#endif	// CONFIG_POCSAG
 
 #if CONFIG_BCAST_FM
 // The broadcast receiver's audio (hrc_bcast.h audio_path) needs the amplifier. The core mutes the channel's audio

@@ -301,9 +301,18 @@
 #ifndef CONFIG_APRS_TX
 #define CONFIG_APRS_TX			0
 #endif
+// The POCSAG pager app (core/pocsag): a baseband 2FSK encoder through the FM modulator and a receiver from the FM
+// discriminator audio. Needs FM and APRS (its transmit service and receive audio)
+#ifndef CONFIG_POCSAG
+#define CONFIG_POCSAG			0
+#endif
 // The RTTY TX app (core/rtty). Needs FM and APRS
 #ifndef CONFIG_RTTY_TX
 #define CONFIG_RTTY_TX			0
+#endif
+// The FM transceiver app (UI only): a tuned VFO where PTT is live, even in a CONFIG_NO_PTT build
+#ifndef CONFIG_FM_TRX
+#define CONFIG_FM_TRX			CONFIG_FM
 #endif
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS

@@ -60,6 +60,15 @@
       "notes": "Includes every DMR feature and everything on IP over DMR"
     },
     {
+      "name": "DMR_CODEC",
+      "help": "Host the stock AMBE+2 codec (the DMR voice codec). Off: DMR modem/glue stays, voice is unavailable and the 13 KB codec state is not allocated (needs DMR)",
+      "default": "$(CONFIG_DMR)",
+      "needs": {
+        "all": [],
+        "any": []
+      }
+    },
+    {
       "name": "DMR_PRIVACY",
       "help": "basic privacy (Motorola / Anytone BP) on the voice path (needs DMR)",
       "default": "$(CONFIG_DMR)",
@@ -1193,6 +1202,20 @@
         "all": [
           "FM",
           "APRS_RX"
+        ],
+        "any": []
+      }
+    },
+    {
+      "name": "ACARS",
+      "help": "The ACARS receiver (core/acars): MSK on the AM airband audio. Needs FM, AM_RX, APRS_RX (the 8 kHz audio path) and DMR (the HR_C7000 receive audio glue). On by default where all of those are",
+      "default": "$(if $(and $(filter y,$(CONFIG_AM_RX)),$(filter y,$(CONFIG_APRS_RX)),$(filter y,$(CONFIG_DMR))),y,n)",
+      "needs": {
+        "all": [
+          "FM",
+          "AM_RX",
+          "APRS_RX",
+          "DMR"
         ],
         "any": []
       }

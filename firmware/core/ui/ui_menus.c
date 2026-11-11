@@ -5992,6 +5992,16 @@ static void icon_acars(int ox, int oy, int s, color_t c)
 	iline(ox, oy, s, 11, 13, 5, 6, c);
 }
 #endif
+#if CONFIG_GPS_SKY
+static void icon_gps(int ox, int oy, int s, color_t c)
+{
+	// a location pin: a ring with a tail and the fix dot
+	iellipse(ox, oy, s, 8, 6, 3, 3, c);
+	iline(ox, oy, s, 5, 8, 8, 14, c);
+	iline(ox, oy, s, 11, 8, 8, 14, c);
+	ipx(ox, oy, s, 8, 6, c);
+}
+#endif
 
 typedef struct {
 	const char *label;
@@ -6024,9 +6034,14 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
 #endif
 
-#if CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
 static const menu_tx_tile_t menu_rx_tiles[] = {
+#if CONFIG_RTTY_RX
 	{ "RTTY", icon_rtty, SCR_RTTY_RX },
+#endif
+#if CONFIG_GPS_SKY
+	{ "GPS", icon_gps, SCR_GPS },
+#endif
 	// ACARS is not exposed: the DM32's FD6818 does not give a clean ACARS baseband (the type-7 AM word is
 	// silent and the FM slope path is differentiated). The screen and app stay in the tree for later work.
 };
@@ -6067,7 +6082,7 @@ static uint16_t menu_count(uint16_t menu)
 	if (menu == MENU_TX)
 		return MENU_TX_TILES;
 #endif
-#if CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
 	if (menu == MENU_RX)
 		return MENU_RX_TILES;
 #endif
@@ -6088,7 +6103,7 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 	if (menu == MENU_TX)
 		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
 #endif
-#if CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
 	if (menu == MENU_RX)
 		return i < MENU_RX_TILES ? menu_rx_tiles[i].label : "";
 #endif
@@ -6123,7 +6138,7 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
-#if CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			menu_rx_tiles[i].icon(ox, oy, s, c);
@@ -6166,7 +6181,7 @@ static void menu_activate(uint16_t menu, uint16_t i)
 		return;
 	}
 #endif
-#if CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			ui_push(menu_rx_tiles[i].scr, 0);

@@ -103,10 +103,11 @@ and keeps auto power off from firing while it waits.
 
 ## Flash from the browser
 
-Open **[dm32mayhem.com](https://dm32mayhem.com/)** in Chrome or Edge on a desktop computer, or Chrome on Android, and
-connect the radio's programming cable. **Install** backs up the radio first, then writes the codec-less DM32Mayhem
-image, merging the radio's own DMR voice codec. **Back Up** and **Restore** use the same backup bundle; **Radio Stuck
-in Update Mode** recovers a radio left in its loader.
+Open **[dm32mayhem.com/flasher](https://dm32mayhem.com/flasher/)** in Chrome or Edge on a desktop computer, or Chrome
+on Android, and connect the radio's programming cable. **Install** backs up the radio first, then writes the codec-less
+DM32Mayhem image, merging the radio's own DMR voice codec. **Update** writes the latest image over a radio already
+running DM32Mayhem. **Back Up** and **Restore** use the same backup bundle; **Radio Stuck in Update Mode** recovers a
+radio left in its loader.
 
 ## Build and flash
 

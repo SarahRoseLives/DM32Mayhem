@@ -1,7 +1,16 @@
 # dm32mayhem.com
 
-The web flasher at <https://dm32mayhem.com>: back up a Baofeng DM-32UV, install DM32Mayhem, and restore the backup.
-The browser does the work over Web Serial; the Go server only serves the page, the fixed image and its manifest.
+The DM32Mayhem site: a landing page at <https://dm32mayhem.com/> that shows what the firmware does, and the web flasher
+at <https://dm32mayhem.com/flasher/>: back up a Baofeng DM-32UV, install DM32Mayhem, update it, and restore the backup.
+The browser does the work over Web Serial; the Go server only serves the pages, the fixed image and its manifest.
+
+## The pages
+
+- `web/tools/landing.html` is the home page, written to `web/site/index.html`: the hero, the feature cards, the
+  screenshot gallery (`web/site/img/screens/`, captured from the radio) and the honest limits. Edit the template, then
+  run `gen_site.py` again.
+- the flasher is written to `web/site/flasher/index.html`, so its address is `/flasher/`. Its assets stay at the root
+  (`/js`, `/css`, `/data`, `/firmware`), and the page's `data-root="/"` keeps those paths working.
 
 ## The flasher
 
@@ -28,8 +37,8 @@ python3 web/tools/gen_site.py --version v26.11
 ```
 
 This writes `web/site/data/*.json` (the DM-32UV registry entry, flash tables, the C7 stub, the release), the fixed
-image and manifest at `web/site/firmware/`, the English catalog and `index.html`. Run it again after every firmware
-change or version bump.
+image and manifest at `web/site/firmware/`, the English catalog, the landing page at `web/site/index.html` and the
+flasher at `web/site/flasher/index.html`. Run it again after every firmware change or version bump.
 
 ## Run locally
 
@@ -55,6 +64,7 @@ Check it with:
 
 ```
 curl -I https://dm32mayhem.com/
+curl -I https://dm32mayhem.com/flasher/
 curl -s https://dm32mayhem.com/healthz
 ```
 

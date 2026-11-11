@@ -24,6 +24,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FW = os.path.join(ROOT, "firmware")
 SITE = os.path.join(ROOT, "web", "site")
 SITE_PY = os.path.join(FW, "site")
+LANDING = os.path.join(HERE, "landing.html")
 sys.path.insert(0, SITE_PY)
 
 from rfoundrysite import repo  # noqa: E402
@@ -127,6 +128,13 @@ def strings():
     return out
 
 
+def landing(version, short):
+    """The DM32Mayhem home page: the showcase, with the flasher one click away at /flasher/."""
+    with open(LANDING, encoding="utf-8") as f:
+        html = f.read()
+    return html.replace("{{version}}", version).replace("{{git}}", short)
+
+
 def index(cat):
     catalog = json.dumps(cat, ensure_ascii=False).replace("</", "<\\/")
     return """<!doctype html>
@@ -160,7 +168,7 @@ def index(cat):
 </script>
 <header class="dm-head">
   <a class="dm-brand" href="/">DM32<span>Mayhem</span></a>
-  <nav><a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a><a href="/#help">Help</a></nav>
+  <nav><a href="/">Home</a><a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a></nav>
 </header>
 <main class="dm-main">
   <section class="dm-intro">
@@ -223,7 +231,8 @@ def main():
         "reports": {"sentry_dsn": None}, "tool": None})
     cat = strings()
     write("data/i18n.json", cat)
-    write("index.html", index(cat))
+    write("index.html", landing(args.version, short))
+    write("flasher/index.html", index(cat))
     print("image %s (%d bytes, %s)" % (args.version, len(image), sha))
     print("commit %s" % full)
 

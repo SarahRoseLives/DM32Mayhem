@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM32Mayhem — open firmware for the Baofeng DM-32UV</title>
+<meta name="description" content="DM32Mayhem is free, open-source firmware for the Baofeng DM-32UV: an FM transceiver with live PTT, SAME/OOK/MDC/P25/APRS/RTTY transmit apps, a RTTY receiver, and a browser flasher.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="DM32Mayhem — open firmware for the Baofeng DM-32UV">
+<meta property="og:description" content="FM transceiver with live PTT, six transmit apps, a RTTY receiver, and a browser flasher.">
+<meta property="og:image" content="/img/screens/home.png">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="#features">Features</a>
+			<a href="#screens">Screens</a>
+			<a href="#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+
+<main>
+	<section class="hero">
+		<div class="wrap hero-grid">
+			<div class="hero-text">
+				<p class="eyebrow">Open firmware · Baofeng DM-32UV</p>
+				<h1>DM32Mayhem</h1>
+				<p class="lead">A free, open-source firmware for the Baofeng DM-32UV: an FM transceiver with live PTT, a suite of transmit apps, a RTTY receiver, and a boot gate. Flash it from your browser.</p>
+				<div class="actions">
+					<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+					<a class="btn" href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>
+				</div>
+				<p class="small muted">Release {{version}} · git {{git}} · MIT licensed</p>
+				<dl class="feature-rows">
+					<div><dt>Voice</dt><dd>An FM transceiver with live PTT, repeater offset and CTCSS.</dd></div>
+					<div><dt>Data</dt><dd>APRS, P25 control channel, MDC-1200, SAME, OOK and RTTY.</dd></div>
+					<div><dt>Receive</dt><dd>RTTY and APRS; DMR with the radio's own codec.</dd></div>
+					<div><dt>Open</dt><dd>MIT source, a browser flasher, no vendor lock-in.</dd></div>
+				</dl>
+			</div>
+			<figure class="hero-device">
+				<img src="/img/dm32.svg" alt="Baofeng DM-32UV running DM32Mayhem">
+			</figure>
+		</div>
+	</section>
+
+	<section id="screens" class="wrap section">
+		<div class="section-head">
+			<h2>The radio, up close</h2>
+			<span class="small muted">Captured on a DM-32UV running this build</span>
+		</div>
+		<div class="shot-grid">
+			<figure class="shot"><img src="/img/screens/home.png" alt="Home" width="240" height="320" loading="lazy"><figcaption>Home: RX, TX, TRX, About, Config, Diagnostics</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/tx-menu.png" alt="TX apps" width="240" height="320" loading="lazy"><figcaption>TX apps: SAME, OOK, MDC, P25, APRS, RTTY</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/rx-menu.png" alt="RX apps" width="240" height="320" loading="lazy"><figcaption>RX apps: RTTY receive</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/trx-menu.png" alt="TRX apps" width="240" height="320" loading="lazy"><figcaption>TRX apps: the FM transceiver</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/fm-trx.png" alt="FM transceiver" width="240" height="320" loading="lazy"><figcaption>FM transceiver: TX, RX, offset, CTCSS RX/TX</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/fm-tx.png" alt="Transmitting" width="240" height="320" loading="lazy"><figcaption>Live PTT: TX 146.100, RX 145.500</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/rtty-rx.png" alt="RTTY receive" width="240" height="320" loading="lazy"><figcaption>RTTY receive: ITA2 at 45.45/50 baud</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/rtty-messages.png" alt="RTTY messages" width="240" height="320" loading="lazy"><figcaption>RTTY Messages: full screen; OK clears</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/same-tx.png" alt="SAME TX" width="240" height="320" loading="lazy"><figcaption>SAME TX: NOAA/EAS weather headers</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/ook-tx.png" alt="OOK TX" width="240" height="320" loading="lazy"><figcaption>OOK TX: hex codes and de Bruijn sequences</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/mdc-tx.png" alt="MDC TX" width="240" height="320" loading="lazy"><figcaption>MDC-1200 TX: ANI and PTT ID</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/p25cc-tx.png" alt="P25 CC TX" width="240" height="320" loading="lazy"><figcaption>P25 CC TX: a Phase 1 control channel</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/aprs-tx.png" alt="APRS TX" width="240" height="320" loading="lazy"><figcaption>APRS TX: status, messages, position</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/rtty-tx.png" alt="RTTY TX" width="240" height="320" loading="lazy"><figcaption>RTTY TX: ITA2 with mark and shift</figcaption></figure>
+			<figure class="shot"><img src="/img/screens/boot-gate.png" alt="Boot gate" width="240" height="320" loading="lazy"><figcaption>Boot gate: a fresh code at every power-on</figcaption></figure>
+		</div>
+	</section>
+
+	<section id="features" class="wrap section">
+		<div class="section-head"><h2>What it does</h2></div>
+		<div class="feature-grid">
+			<article class="feature-card">
+				<h3>An FM transceiver, not just a receiver</h3>
+				<p>Set the TX and RX frequencies directly, pick a repeater offset, and give RX and TX their own CTCSS. Hold PTT to talk; release to listen. It is the one screen where PTT keys the radio.</p>
+			</article>
+			<article class="feature-card">
+				<h3>Six transmit apps</h3>
+				<p>SAME weather headers, OOK and de Bruijn remote codes, MDC-1200 ANI/PTT ID, a P25 Phase 1 control channel, APRS status/messages/position, and ITA2 RTTY. Each queues a job and the radio keys, tunes and unkeys itself.</p>
+			</article>
+			<article class="feature-card">
+				<h3>A real RTTY receiver</h3>
+				<p>Two-tone FSK from the FM discriminator audio, a bit clock that locks to the tone changes, and ITA2 decoding at 45.45 or 50 baud. Mark, shift and invert are settings; the text scrolls in a log and opens full screen.</p>
+			</article>
+			<article class="feature-card">
+				<h3>APRS and DMR</h3>
+				<p>The APRS engine for beacons, messages and positions, with KISS and iGate paths in network builds. DMR receive uses the radio's own AMBE codec, merged by the flasher from the radio.</p>
+			</article>
+			<article class="feature-card">
+				<h3>A boot gate and a tile grid</h3>
+				<p>Every power-on opens with a responsibility notice and a six-digit code generated for that boot. Nothing runs until it is typed. Past it, the apps sit in a grid grouped by direction: RX, TX and TRX.</p>
+			</article>
+			<article class="feature-card">
+				<h3>Flash from the browser</h3>
+				<p>The <a href="/flasher/">web flasher</a> backs up the original firmware, installs DM32Mayhem, restores a backup and updates an installed radio, over the programming cable in Chrome or Edge. Your backups stay on your computer.</p>
+			</article>
+		</div>
+	</section>
+
+	<section id="limits" class="wrap section">
+		<div class="section-head"><h2>Honest limits</h2></div>
+		<ul class="limits">
+			<li><strong>DMR voice needs the codec.</strong> Install with the flasher and it keeps the radio's own AMBE codec; a build without one has no DMR voice.</li>
+			<li><strong>POCSAG is not ready.</strong> The protocol code is in the tree, but the receiver does not decode reliably yet, so its apps are hidden.</li>
+			<li><strong>Manual PTT is only in the FM transceiver.</strong> Everywhere else the apps key the radio themselves. The build in this site has no global PTT.</li>
+			<li><strong>FM and packet first.</strong> The boot gate is an acknowledgement, not a lock. OOK timing is limited by the PA settling time, about 1 ms per bit.</li>
+		</ul>
+	</section>
+
+	<section class="wrap section cta">
+		<h2>Try it on your DM-32UV</h2>
+		<p class="lead">Back up the original firmware first. The flasher does that for you, then installs DM32Mayhem and leaves the codec and calibration alone.</p>
+		<div class="actions">
+			<a class="btn btn-primary" href="/flasher/">Open the flasher →</a>
+			<a class="btn" href="https://github.com/SarahRoseLives/DM32Mayhem">Read the source</a>
+		</div>
+	</section>
+</main>
+
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed. The flasher is based on RadioFoundry's MIT web flasher. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+		<p class="build-stamp">Release {{version}} · <a href="https://github.com/SarahRoseLives/DM32Mayhem/commit/{{git}}">{{git}}</a></p>
+	</div>
+</footer>
+</body>
+</html>

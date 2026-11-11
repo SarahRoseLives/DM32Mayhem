@@ -3,8 +3,8 @@
   "board": "dm32",
   "board_name": "Baofeng DM-32UV",
   "version": "v26.11",
-  "git": "570f8371",
-  "git_full": "570f83715bb96d1f82daefa2302166470b189646",
+  "git": "4f78667f",
+  "git_full": "4f78667f0484c902c8eb704cfd952d92206867d5",
   "image": {
     "file": "dm32mayhem.bin",
     "size": 415300,
@@ -37,5 +37,5 @@
   "toolchain": "csky-elf-gcc (GCC) 14.2.0",
   "variant": "full",
   "off": "LANG_IT,LANG_DEFAULT_ES,LANG_DEFAULT_IT,NO_PTT,BOOT_GATE,OOK_TX,MDC_TX,P25CC_TX,APRS_TX,RTTY_TX,RTTY_RX,VIBRATE,P25_PROBE,BBS,SAME_TX",
-  "git_time": 1794362187
+  "git_time": 1794362215
 }

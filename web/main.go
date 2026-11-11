@@ -152,7 +152,8 @@ func handler(domain, reports string) http.Handler {
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		switch {
-		case r.URL.Path == "/" || r.URL.Path == "/index.html":
+		case r.URL.Path == "/" || r.URL.Path == "/index.html" ||
+			r.URL.Path == "/flasher" || r.URL.Path == "/flasher/" || r.URL.Path == "/flasher/index.html":
 			w.Header().Set("Cache-Control", "no-cache")
 		case strings.HasPrefix(r.URL.Path, "/js/") || strings.HasPrefix(r.URL.Path, "/css/"):
 			// The page's modules import each other by path, so a version query on app.js would not reach them: revalidate

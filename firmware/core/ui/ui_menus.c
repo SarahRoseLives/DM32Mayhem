@@ -5978,20 +5978,6 @@ static void icon_rtty(int ox, int oy, int s, color_t c)
 }
 #endif
 
-#if CONFIG_POCSAG
-static void icon_pager(int ox, int oy, int s, color_t c)
-{
-	iline(ox, oy, s, 3, 2, 13, 2, c);		// a pager: its body...
-	iline(ox, oy, s, 13, 2, 13, 14, c);
-	iline(ox, oy, s, 13, 14, 3, 14, c);
-	iline(ox, oy, s, 3, 14, 3, 2, c);
-	iline(ox, oy, s, 5, 5, 11, 5, c);		// ... its display
-	iline(ox, oy, s, 5, 8, 11, 8, c);
-	iline(ox, oy, s, 5, 11, 8, 11, c);
-	ipx(ox, oy, s, 12, 12, c);			// its LED
-}
-#endif
-
 typedef struct {
 	const char *label;
 	void (*icon)(int ox, int oy, int s, color_t c);
@@ -6019,21 +6005,13 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #if CONFIG_RTTY_TX
 	{ "RTTY", icon_rtty, SCR_RTTY_TX },
 #endif
-#if CONFIG_POCSAG
-	{ "POCSAG", icon_pager, SCR_POCSAG_TX },
-#endif
 };
 #define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
 #endif
 
-#if CONFIG_POCSAG || CONFIG_RTTY_RX
-static const menu_tx_tile_t menu_rx_tiles[] = {
-#if CONFIG_POCSAG
-	{ "POCSAG", icon_pager, SCR_POCSAG },
-#endif
 #if CONFIG_RTTY_RX
+static const menu_tx_tile_t menu_rx_tiles[] = {
 	{ "RTTY", icon_rtty, SCR_RTTY_RX },
-#endif
 };
 #define MENU_RX_TILES	(sizeof(menu_rx_tiles) / sizeof(menu_rx_tiles[0]))
 #endif
@@ -6053,7 +6031,7 @@ static uint16_t menu_count(uint16_t menu)
 	if (menu == MENU_TX)
 		return MENU_TX_TILES;
 #endif
-#if CONFIG_POCSAG || CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX
 	if (menu == MENU_RX)
 		return MENU_RX_TILES;
 #endif
@@ -6072,7 +6050,7 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 	if (menu == MENU_TX)
 		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
 #endif
-#if CONFIG_POCSAG || CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX
 	if (menu == MENU_RX)
 		return i < MENU_RX_TILES ? menu_rx_tiles[i].label : "";
 #endif
@@ -6102,7 +6080,7 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
-#if CONFIG_POCSAG || CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			menu_rx_tiles[i].icon(ox, oy, s, c);
@@ -6138,7 +6116,7 @@ static void menu_activate(uint16_t menu, uint16_t i)
 		return;
 	}
 #endif
-#if CONFIG_POCSAG || CONFIG_RTTY_RX
+#if CONFIG_RTTY_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			ui_push(menu_rx_tiles[i].scr, 0);

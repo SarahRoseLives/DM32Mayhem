@@ -810,7 +810,7 @@ function startView() {
 	return h("div", { class: "flasher" },
 		...support,
 		panel(t("flash.start.title"),
-			h("div", { class: "choice-grid" }, choice("install", "⤓"), choice("backup", "⎘"), choice("restore", "↺"), choice("restart", "⏻"),
+			h("div", { class: "choice-grid" }, choice("install", "⤓"), choice("update", "⤒"), choice("backup", "⎘"), choice("restore", "↺"), choice("restart", "⏻"),
 				choice("help", "?"))),
 		h("details", { class: "small" }, h("summary", {}, t("flash.start.privacy_title")), h("p", {}, t("flash.start.privacy"))),
 		h("p", { class: "small muted" }, S.sim ? h("a", { href: "#", onclick: (e) => { e.preventDefault(); location.hash = ""; location.reload(); } }, t("flash.sim.leave"))
@@ -879,8 +879,8 @@ async function connectForUpdate(status) {
 	S.current = currentBuild(p, r, S.data.releases.filter((x) => x.board === r.id), S.data.reported);
 	S.decided = {};
 	planUpdate(S.current, S.selection, S.decided);
-	// a build the radio doesn't say: the build step, starting from the closest variant
-	S.editBuild = S.current.kind === "unknown";
+	// This site installs one fixed image, so there is no build step: an update writes it over the radio's build
+	S.editBuild = false;
 	diag.note("update: radio", { board: p.board, git: p.git, build: S.current.kind, preset: S.current.preset || S.current.guess || null });
 }
 
@@ -910,17 +910,17 @@ function updateView() {
 			return;
 		}
 		const p = S.now.probe, cur = S.current;
-		// the radio's own build, unless the build step has the selection (edits kept when the user comes back)
-		const plan = S.editBuild ? { preset: S.selection.matches(startCode), added: [], ask: [], ready: true } : planUpdate(cur, S.selection, S.decided);
+		// One fixed image: no feature decisions and no build step, whatever build the radio runs now
+		const plan = planUpdate(cur, S.selection, S.decided);
+		plan.ask = [];
+		plan.added = [];
+		plan.ready = true;
 		// an image built for another selection no longer applies
 		if (S.firmware?.selection && S.firmware.selection !== selectionKey(S.selection)) S.firmware = null;
 		const vtitle = (id) => (t(`variant.${id}.title`) !== `variant.${id}.title` ? t(`variant.${id}.title`) : S.data.variants.find((v) => v.id === id)?.title || id);
 		const title = (n) => S.selection.byName[n]?.title || n;
-		const buildText = cur.kind === "unknown" && !S.editBuild ? t("flash.update.build_unknown") : plan.preset ? vtitle(plan.preset) : t("flash.build.custom");
-		const edit = button(t(S.editBuild ? "flash.update.keep_build" : "flash.update.edit_build"), () => {
-			S.editBuild = !S.editBuild;
-			render();	// off again: the radio's own build (planUpdate in the redraw)
-		}, { quiet: true });
+		const buildText = cur.kind === "unknown" ? t("flash.update.build_unknown") : plan.preset ? vtitle(plan.preset) : t("flash.build.custom");
+		const edit = null;
 		const asks = plan.ask.length ? h("div", { class: "notice action" },
 			h("p", {}, h("b", {}, t("flash.update.new_title")), " ", t("flash.update.new_custom")),
 			...plan.ask.map((n) => h("div", { class: "update-new" },

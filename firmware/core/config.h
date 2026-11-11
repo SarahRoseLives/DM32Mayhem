@@ -317,6 +317,10 @@
 #ifndef CONFIG_APRS_RX
 #define CONFIG_APRS_RX			CONFIG_APRS
 #endif
+// The RTTY RX app (core/rtty): ITA2 receive from the FM receive audio. Needs FM and the APRS receive audio path
+#ifndef CONFIG_RTTY_RX
+#define CONFIG_RTTY_RX			(CONFIG_RTTY_TX && CONFIG_APRS_RX)
+#endif
 #ifndef CONFIG_APRS_IGATE
 #define CONFIG_APRS_IGATE		(CONFIG_APRS_RX && CONFIG_HOSTLINK)
 #endif

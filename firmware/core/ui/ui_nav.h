@@ -42,6 +42,8 @@ typedef enum {
 	SCR_P25CC_TX,			// the P25 control channel transmitter (CONFIG_P25CC_TX, core/p25cc)
 	SCR_APRS_TX,			// the APRS status/message transmitter (CONFIG_APRS_TX)
 	SCR_RTTY_TX,			// the RTTY transmitter (CONFIG_RTTY_TX, core/rtty)
+	SCR_RTTY_RX,			// the RTTY receiver (CONFIG_RTTY_RX, core/rtty)
+	SCR_RTTY_MSGS,			// the RTTY receiver's received text, full screen
 	SCR_POCSAG,			// the POCSAG pager receiver (CONFIG_POCSAG)
 	SCR_POCSAG_TX,			// the POCSAG pager transmitter (CONFIG_POCSAG)
 	SCR_POCSAG_MSGS,		// the pages the POCSAG receiver heard
@@ -108,6 +110,8 @@ void ui_go_home(void);
 void ui_toast(const char *text);
 // Stop the POCSAG monitor if it is running (the screen's own Back stops it; Home stops it from ui_app.c)
 void ui_pocsag_stop(void);
+// Stop the RTTY receiver's audio if it is running
+void ui_rtty_rx_stop(void);
 // Save temporary channel changes and tell the user why a save cannot start
 bool ui_try_save_channel(void);
 void ui_dirty(void);

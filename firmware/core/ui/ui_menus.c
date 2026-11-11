@@ -42,6 +42,9 @@
 #if CONFIG_RTTY_TX
 #include "rtty/rtty.h"
 #endif
+#if CONFIG_RTTY_RX
+#include "rtty/rtty_rx.h"
+#endif
 #if CONFIG_APRS_TX
 #include "aprs/aprs_fmt.h"
 #include "ui_svc_aprs.h"
@@ -5963,7 +5966,7 @@ static void icon_aprs(int ox, int oy, int s, color_t c)
 }
 #endif
 
-#if CONFIG_RTTY_TX
+#if CONFIG_RTTY_TX || CONFIG_RTTY_RX
 static void icon_rtty(int ox, int oy, int s, color_t c)
 {
 	iline(ox, oy, s, 2, 4, 13, 4, c);		// a paper tape
@@ -6023,9 +6026,14 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
 #endif
 
-#if CONFIG_POCSAG
+#if CONFIG_POCSAG || CONFIG_RTTY_RX
 static const menu_tx_tile_t menu_rx_tiles[] = {
+#if CONFIG_POCSAG
 	{ "POCSAG", icon_pager, SCR_POCSAG },
+#endif
+#if CONFIG_RTTY_RX
+	{ "RTTY", icon_rtty, SCR_RTTY_RX },
+#endif
 };
 #define MENU_RX_TILES	(sizeof(menu_rx_tiles) / sizeof(menu_rx_tiles[0]))
 #endif
@@ -6045,7 +6053,7 @@ static uint16_t menu_count(uint16_t menu)
 	if (menu == MENU_TX)
 		return MENU_TX_TILES;
 #endif
-#if CONFIG_POCSAG
+#if CONFIG_POCSAG || CONFIG_RTTY_RX
 	if (menu == MENU_RX)
 		return MENU_RX_TILES;
 #endif
@@ -6064,7 +6072,7 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 	if (menu == MENU_TX)
 		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
 #endif
-#if CONFIG_POCSAG
+#if CONFIG_POCSAG || CONFIG_RTTY_RX
 	if (menu == MENU_RX)
 		return i < MENU_RX_TILES ? menu_rx_tiles[i].label : "";
 #endif
@@ -6094,7 +6102,7 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
-#if CONFIG_POCSAG
+#if CONFIG_POCSAG || CONFIG_RTTY_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			menu_rx_tiles[i].icon(ox, oy, s, c);
@@ -6130,7 +6138,7 @@ static void menu_activate(uint16_t menu, uint16_t i)
 		return;
 	}
 #endif
-#if CONFIG_POCSAG
+#if CONFIG_POCSAG || CONFIG_RTTY_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			ui_push(menu_rx_tiles[i].scr, 0);
@@ -8111,6 +8119,375 @@ static const ui_scr_def_t rtty_screen = {
 #endif	// CONFIG_RTTY_TX
 
 
+#if CONFIG_RTTY_RX
+// ======================= RTTY receive (CONFIG_RTTY_RX) =======================
+// Tunes the VFO to the RTTY channel, starts the FM receive audio and decodes ITA2 in the UI tick. The demodulator is
+// core/rtty/rtty_rx.c; Mark and Shift are the transmitter's tones (space = mark + shift). The squelch gates the
+// decoder, which is reset when the carrier appears so its settling character is not shown.
+
+enum { RTTYRX_ROW_FREQ, RTTYRX_ROW_BAUD, RTTYRX_ROW_MARK, RTTYRX_ROW_SHIFT, RTTYRX_ROW_INVERT,
+       RTTYRX_ROW_MONITOR, RTTYRX_ROW_MESSAGES, RTTYRX_ROW_STATUS, RTTYRX_ROW_COUNT };
+
+#define RTTYRX_TEXT_MAX	1024
+
+static rtty_rx_t rtty_rx;
+static bool rtty_rx_active;
+static bool rtty_rx_dirty;
+static bool rtty_rx_squelch;
+static uint32_t rtty_rx_hz = 145500000u;
+static uint8_t rtty_rx_baud_idx, rtty_rx_mark_idx, rtty_rx_shift_idx;
+static bool rtty_rx_invert;
+static int8_t rtty_rx_edit = -1;
+static char rtty_rx_digits[UI_ENTRY_MAX + 1];
+static uint8_t rtty_rx_len;
+static char rtty_rx_text[RTTYRX_TEXT_MAX];
+static uint16_t rtty_rx_text_len;
+
+static const uint16_t rtty_rx_bauds[] = { 45, 50 };
+static const char *const rtty_rx_baud_names[] = { "45.45", "50" };
+// Mark 0 Hz is the portapak's baseband shift (space = 170 Hz); the audio sets follow for other senders
+static const uint16_t rtty_rx_marks[] = { 0, 2125, 1275, 1700 };
+static const uint16_t rtty_rx_shifts[] = { 170, 425, 850 };
+
+static void rtty_rx_append(char c)
+{
+	if (rtty_rx_text_len >= RTTYRX_TEXT_MAX - 1u) {
+		memmove(rtty_rx_text, rtty_rx_text + 1, RTTYRX_TEXT_MAX - 2u);
+		rtty_rx_text_len--;
+	}
+	rtty_rx_text[rtty_rx_text_len++] = c;
+	rtty_rx_text[rtty_rx_text_len] = '\0';
+	rtty_rx_dirty = true;
+}
+
+static void rtty_rx_newline(void)
+{
+	if (rtty_rx_text_len != 0 && rtty_rx_text[rtty_rx_text_len - 1u] != '\n') {
+		rtty_rx_append('\n');
+	}
+}
+
+static void rtty_rx_clear(void)
+{
+	rtty_rx_text_len = 0;
+	rtty_rx_text[0] = '\0';
+	rtty_rx_dirty = true;
+	ui_dirty();
+}
+
+static void rtty_rx_char(char c, void *ctx)
+{
+	(void)ctx;
+	if (c == '\r' || c == '\n') {
+		rtty_rx_newline();
+		return;
+	}
+	if (c != '\0') {
+		rtty_rx_append(c);
+	}
+}
+
+static bool rtty_rx_decode_init(void)
+{
+	return rtty_rx_init(&rtty_rx, 8000u, rtty_rx_bauds[rtty_rx_baud_idx], rtty_rx_marks[rtty_rx_mark_idx],
+			    rtty_rx_marks[rtty_rx_mark_idx] + rtty_rx_shifts[rtty_rx_shift_idx], rtty_rx_invert,
+			    rtty_rx_char, NULL);
+}
+
+static void rtty_rx_monitor_stop(void)
+{
+	if (rtty_rx_active) {
+		if (board.afsk != NULL && board.afsk->rx_stop != NULL) {
+			board.afsk->rx_stop();
+		}
+		rtty_rx_active = false;
+	}
+}
+
+void ui_rtty_rx_stop(void)
+{
+	rtty_rx_monitor_stop();
+}
+
+static void rtty_rx_monitor_start(void)
+{
+	rtty_rx_monitor_stop();
+	rtty_rx_clear();
+	rtty_rx_squelch = false;
+	if (!rtty_rx_decode_init()) {
+		ui_toast("RTTY RX: bad settings");
+		return;
+	}
+	radio_req_vfo(true);
+	radio_req_vfo_set(rtty_rx_hz);
+	radio_req_mode(RADIO_MODE_FM);
+	if (board.afsk == NULL || board.afsk->rx_start == NULL || board.afsk->rx_read == NULL) {
+		ui_toast("RTTY RX: no audio path");
+		return;
+	}
+	if (!board.afsk->rx_start()) {
+		ui_toast("RTTY RX: audio busy");
+		return;
+	}
+	rtty_rx_active = true;
+	ui_toast("Listening");
+}
+
+// Drain the receive ring and feed the decoder. Both screens call it: the full-screen text keeps decoding
+static bool rtty_rx_pump(void)
+{
+	if (!rtty_rx_active || board.afsk == NULL || board.afsk->rx_read == NULL) {
+		return false;
+	}
+	bool rx = ui_view()->state == RS_RX;
+	if (rx != rtty_rx_squelch) {
+		rtty_rx_squelch = rx;
+		if (rx) {
+			rtty_rx_newline();		// a new over starts on its own line
+			(void)rtty_rx_decode_init();	// the clock settles on the first character; drop it
+			rtty_rx_dirty = true;
+		}
+	}
+	int16_t buf[160];
+	uint16_t n;
+	while ((n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0) {
+		if (rx) {
+			rtty_rx_feed(&rtty_rx, buf, n);
+		}
+	}
+	bool redraw = rtty_rx_dirty;
+	rtty_rx_dirty = false;
+	return redraw;
+}
+
+static bool rtty_rx_tick(uint32_t now)
+{
+	(void)now;
+	return rtty_rx_pump();
+}
+
+static bool rtty_msgs_tick(uint32_t now)
+{
+	(void)now;
+	return rtty_rx_pump();
+}
+
+static void rtty_rx_freq_digits(uint32_t hz)
+{
+	rtty_rx_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		rtty_rx_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	rtty_rx_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static uint16_t rtty_rx_count(void) { return RTTYRX_ROW_COUNT; }
+
+static void rtty_rx_item(uint16_t i, ui_item_t *it)
+{
+	item_num(it, (uint16_t)(i + 1u));
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = rtty_rx_edit == (int8_t)i;
+	switch (i) {
+	case RTTYRX_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, rtty_rx_len != 0 ? rtty_rx_digits : "type digits");
+		} else {
+			sb_freq(&b, rtty_rx_hz);
+		}
+		break;
+	case RTTYRX_ROW_BAUD:
+		str_copy(it->label, sizeof it->label, "Baud");
+		sb_str(&b, rtty_rx_baud_names[rtty_rx_baud_idx % (sizeof rtty_rx_bauds / sizeof rtty_rx_bauds[0])]);
+		break;
+	case RTTYRX_ROW_MARK:
+		str_copy(it->label, sizeof it->label, "Mark");
+		sb_u32(&b, rtty_rx_marks[rtty_rx_mark_idx % (sizeof rtty_rx_marks / sizeof rtty_rx_marks[0])], 1);
+		sb_str(&b, " Hz");
+		break;
+	case RTTYRX_ROW_SHIFT:
+		str_copy(it->label, sizeof it->label, "Shift");
+		sb_u32(&b, rtty_rx_shifts[rtty_rx_shift_idx % (sizeof rtty_rx_shifts / sizeof rtty_rx_shifts[0])], 1);
+		sb_str(&b, " Hz");
+		break;
+	case RTTYRX_ROW_INVERT:
+		str_copy(it->label, sizeof it->label, "Invert");
+		sb_str(&b, rtty_rx_invert ? "On" : "Off");
+		break;
+	case RTTYRX_ROW_MONITOR:
+		str_copy(it->label, sizeof it->label, rtty_rx_active ? "Stop listening" : "Start listening");
+		sb_str(&b, rtty_rx_active ? "Listening" : "Ready");
+		break;
+	case RTTYRX_ROW_MESSAGES:
+		str_copy(it->label, sizeof it->label, "Messages");
+		sb_str(&b, rtty_rx_text_len != 0 ? "View" : "-");
+		break;
+	case RTTYRX_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, "Status");
+		if (rtty_rx_active) {
+			sb_str(&b, "c ");
+			sb_u32(&b, rtty_rx.chars, 1);
+			sb_str(&b, " e ");
+			sb_u32(&b, rtty_rx.errors, 1);
+		} else {
+			sb_str(&b, "Ready");
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void rtty_rx_apply(void)
+{
+	if (rtty_rx_active) {
+		(void)rtty_rx_decode_init();	// a new tone set or clock: start the decoder again
+		rtty_rx_squelch = false;
+	}
+	ui_dirty();
+}
+
+static void rtty_rx_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case RTTYRX_ROW_FREQ:
+		rtty_rx_edit = (int8_t)i;
+		rtty_rx_freq_digits(rtty_rx_hz);
+		break;
+	case RTTYRX_ROW_BAUD:
+		rtty_rx_baud_idx = (uint8_t)((rtty_rx_baud_idx + 1u) % (sizeof rtty_rx_bauds / sizeof rtty_rx_bauds[0]));
+		rtty_rx_apply();
+		break;
+	case RTTYRX_ROW_MARK:
+		rtty_rx_mark_idx = (uint8_t)((rtty_rx_mark_idx + 1u) % (sizeof rtty_rx_marks / sizeof rtty_rx_marks[0]));
+		rtty_rx_apply();
+		break;
+	case RTTYRX_ROW_SHIFT:
+		rtty_rx_shift_idx = (uint8_t)((rtty_rx_shift_idx + 1u) % (sizeof rtty_rx_shifts / sizeof rtty_rx_shifts[0]));
+		rtty_rx_apply();
+		break;
+	case RTTYRX_ROW_INVERT:
+		rtty_rx_invert = !rtty_rx_invert;
+		rtty_rx_apply();
+		break;
+	case RTTYRX_ROW_MONITOR:
+		if (rtty_rx_active) {
+			rtty_rx_monitor_stop();
+			ui_toast("Stopped");
+		} else {
+			rtty_rx_monitor_start();
+		}
+		break;
+	case RTTYRX_ROW_MESSAGES:
+		ui_push(SCR_RTTY_MSGS, 0);
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool rtty_rx_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (rtty_rx_edit >= 0) {
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+			if (rtty_rx_len >= UI_ENTRY_MAX) {
+				rtty_rx_len = 0;	// the first digit replaces the value shown
+			}
+			(void)ui_freq_entry_digit(rtty_rx_digits, &rtty_rx_len, (char)('0' + d));
+			return true;
+		}
+		if (ev->action == ACT_BACK && press) {
+			if (rtty_rx_len != 0) {
+				rtty_rx_digits[--rtty_rx_len] = '\0';
+			} else {
+				rtty_rx_edit = -1;
+			}
+			return true;
+		}
+		if (ev->action == ACT_CONTEXT && press) {
+			rtty_rx_edit = -1;
+			return true;
+		}
+		if (ev->action == ACT_SELECT && press) {
+			uint32_t hz = ui_freq_entry_hz(rtty_rx_digits, rtty_rx_len);
+			if (hz != 0) {
+				rtty_rx_hz = hz;
+				if (rtty_rx_active) {
+					radio_req_vfo_set(hz);
+				}
+			}
+			rtty_rx_edit = -1;
+			return true;
+		}
+		return true;		// while a value is being typed it owns the keys
+	}
+	if (ev->action == ACT_BACK && press && rtty_rx_active) {
+		rtty_rx_monitor_stop();
+		ui_toast("Stopped");
+	}
+	return false;			// the list's Back leaves the screen
+}
+
+static void rtty_rx_enter(void)
+{
+	rtty_rx_edit = -1;
+}
+
+static const char *rtty_rx_body(void)
+{
+	if (rtty_rx_text_len != 0) {
+		// The tail that fits above the rows; the full text is on the Messages screen
+		return rtty_rx_text + (rtty_rx_text_len > 90u ? rtty_rx_text_len - 90u : 0);
+	}
+	return rtty_rx_active ? TR("Listening") : TR("OK to listen");
+}
+
+static uint16_t rtty_msgs_count(void) { return 0; }
+
+static const char *rtty_msgs_body(void)
+{
+	if (rtty_rx_text_len != 0) {
+		// The last screenful: the text is a rolling log, so its end is what matters
+		return rtty_rx_text + (rtty_rx_text_len > 480u ? rtty_rx_text_len - 480u : 0);
+	}
+	return TR("No text yet");
+}
+
+static bool rtty_msgs_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (press && (ev->action == ACT_SELECT || ev->action == ACT_CONTEXT)) {
+		rtty_rx_clear();
+		ui_toast("Cleared");
+		return true;
+	}
+	return false;			// Back pops
+}
+
+static const ui_scr_def_t rtty_msgs_screen = {
+	.name = "rtty-text", .flags = SF_LIST | SF_FIELD, .prefix = TRN("RTTY"),
+	.hint = TRN("OK clear  Back"),
+	.count = rtty_msgs_count, .key = rtty_msgs_key, .tick = rtty_msgs_tick, .body = rtty_msgs_body,
+};
+
+static const ui_scr_def_t rtty_rx_screen = {
+	.name = "rtty-rx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("RTTY RX"),
+	.hint = TRN("OK change  Back"),
+	.count = rtty_rx_count, .item = rtty_rx_item, .select = rtty_rx_select, .key = rtty_rx_key,
+	.enter = rtty_rx_enter, .tick = rtty_rx_tick, .body = rtty_rx_body,
+};
+#endif	// CONFIG_RTTY_RX
+
+
 #if CONFIG_POCSAG
 // ======================= POCSAG (CONFIG_POCSAG): an RX app and a TX app =======================
 // RX (SCR_POCSAG): tune the VFO to the pager channel, start the FM receive audio and decode pages in the UI tick.
@@ -9025,6 +9402,10 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_RTTY_TX
 	[SCR_RTTY_TX] = &rtty_screen,
+#endif
+#if CONFIG_RTTY_RX
+	[SCR_RTTY_RX] = &rtty_rx_screen,
+	[SCR_RTTY_MSGS] = &rtty_msgs_screen,
 #endif
 #if CONFIG_POCSAG
 	[SCR_POCSAG] = &pocsag_rx_screen, [SCR_POCSAG_TX] = &pocsag_tx_screen, [SCR_POCSAG_MSGS] = &pocsag_pages_screen,

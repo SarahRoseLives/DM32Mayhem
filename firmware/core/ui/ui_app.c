@@ -276,10 +276,12 @@ void ui_pop(void)
 }
 
 __attribute__((weak)) void ui_pocsag_stop(void) { }
+__attribute__((weak)) void ui_rtty_rx_stop(void) { }
 
 void ui_go_home(void)
 {
 	ui_pocsag_stop();
+	ui_rtty_rx_stop();
 	cp_question_gone(1);
 	for (uint8_t i = sp; i > 0; i--) {
 		if (ui_scr[stack[i].scr]->leave != NULL)

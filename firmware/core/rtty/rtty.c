@@ -27,10 +27,10 @@ static int rtty_code(char c, uint8_t *shift)
 	case 'A': return 0x03; case 'B': return 0x19; case 'C': return 0x0E; case 'D': return 0x09;
 	case 'E': return 0x01; case 'F': return 0x0D; case 'G': return 0x1A; case 'H': return 0x14;
 	case 'I': return 0x06; case 'J': return 0x0B; case 'K': return 0x0F; case 'L': return 0x12;
-	case 'M': return 0x07; case 'N': return 0x05; case 'O': return 0x18; case 'P': return 0x1C;
-	case 'Q': return 0x11; case 'R': return 0x0A; case 'S': return 0x13; case 'T': return 0x10;
-	case 'U': return 0x16; case 'V': return 0x1E; case 'W': return 0x0C; case 'X': return 0x1D;
-	case 'Y': return 0x15; case 'Z': return 0x17;
+	case 'M': return 0x1C; case 'N': return 0x0C; case 'O': return 0x18; case 'P': return 0x16;
+	case 'Q': return 0x17; case 'R': return 0x0A; case 'S': return 0x05; case 'T': return 0x10;
+	case 'U': return 0x07; case 'V': return 0x1E; case 'W': return 0x13; case 'X': return 0x1D;
+	case 'Y': return 0x15; case 'Z': return 0x11;
 	case ' ': return BIT_SPACE;
 	case '\r': return BIT_CR;
 	case '\n': return BIT_LF;

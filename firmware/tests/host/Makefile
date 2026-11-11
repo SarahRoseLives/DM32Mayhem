@@ -361,6 +361,16 @@ TESTS   += pocsagTest
 pocsagTest: pocsagTest.c $(CORE)/pocsag/pocsag.c $(CORE)/pocsag/pocsag.h $(CORE)/pocsag/pocsag_bch_table.h
 	$(CC) $(CFLAGS) -o $@ pocsagTest.c $(CORE)/pocsag/pocsag.c
 
+# RTTY: the ITA2 encoder and the receiver's demodulator on synthetic discriminator audio
+TESTS   += rttyRxTest
+rttyRxTest: rttyRxTest.c $(CORE)/rtty/rtty_rx.c $(CORE)/rtty/rtty_rx.h $(CORE)/rtty/rtty.c $(CORE)/rtty/rtty.h
+	$(CC) $(CFLAGS) -DCONFIG_RTTY_TX=1 -o $@ rttyRxTest.c $(CORE)/rtty/rtty_rx.c $(CORE)/rtty/rtty.c -lm
+
+run: run-rtty
+run-rtty: rttyRxTest
+	./rttyRxTest
+.PHONY: run-rtty
+
 # The SKY72310 synthesizer's divider words against the data sheet and a register model, the HR_C5000 variant of the
 # HR_C6000 driver, and the GPS NMEA line framing and receive ring the GPS drivers share
 TESTS   += sky72310Test hrc5000Test nmeaLineTest gpsRxTest

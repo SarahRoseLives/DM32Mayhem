@@ -5,6 +5,7 @@
 // picker, information pages and the one confirmation (factory reset, P7).
 #include <stddef.h>
 #include <string.h>
+#include <math.h>
 #include "board.h"
 #include "ui_nav.h"
 #include "ui_svc.h"
@@ -44,6 +45,9 @@
 #endif
 #if CONFIG_RTTY_RX
 #include "rtty/rtty_rx.h"
+#endif
+#if CONFIG_ACARS
+#include "acars/acars.h"
 #endif
 #if CONFIG_APRS_TX
 #include "aprs/aprs_fmt.h"
@@ -5800,15 +5804,15 @@ static const ui_scr_def_t cpf_screen = {
 #if CONFIG_BBS
 // ======================= The app menu (Home) =======================
 // A portapak-style grid of apps, two columns by three rows: the icon over its name, the focused tile filled cyan. It is
-// Home in this build. The top level groups the apps by direction (RX, TX, TRX) and opens About, Config and Diagnostics.
+// Home in this build. The top level groups the apps by direction (RX, TX, TRX) and opens Diagnostics, Experimental and About.
 // RX, TX and TRX are submenus of the same grid; slots with no app yet are drawn empty.
-enum { MENU_TOP, MENU_RX, MENU_TX, MENU_TRX, MENU_IDS };
+enum { MENU_TOP, MENU_RX, MENU_TX, MENU_TRX, MENU_EXP, MENU_IDS };
 #define MT_COLS		2
 #define MT_ROWS		3
 #define MT_SLOTS	(MT_COLS * MT_ROWS)
 
-enum { MT_RX, MT_TX, MT_TRX, MT_ABOUT, MT_CONFIG, MT_DIAG, MT_TOP_COUNT };
-static const char *const menu_top_labels[MT_TOP_COUNT] = { "RX", "TX", "TRX", "ABOUT", "CONFIG", "DIAG" };
+enum { MT_RX, MT_TX, MT_TRX, MT_DIAG, MT_EXP, MT_ABOUT, MT_TOP_COUNT };
+static const char *const menu_top_labels[MT_TOP_COUNT] = { "RX", "TX", "TRX", "DIAG", "EXP", "ABOUT" };
 
 // --- pixel icons, laid out on a 16x16 grid and drawn in s x s blocks so they scale with the tile ---
 static void ipx(int ox, int oy, int s, int x, int y, color_t c)
@@ -5978,6 +5982,17 @@ static void icon_rtty(int ox, int oy, int s, color_t c)
 }
 #endif
 
+#if CONFIG_ACARS
+static void icon_acars(int ox, int oy, int s, color_t c)
+{
+	// a small aircraft climbing, the ACARS direction
+	iline(ox, oy, s, 8, 2, 8, 14, c);
+	iline(ox, oy, s, 3, 9, 13, 9, c);
+	iline(ox, oy, s, 5, 13, 11, 6, c);
+	iline(ox, oy, s, 11, 13, 5, 6, c);
+}
+#endif
+
 typedef struct {
 	const char *label;
 	void (*icon)(int ox, int oy, int s, color_t c);
@@ -6012,6 +6027,8 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #if CONFIG_RTTY_RX
 static const menu_tx_tile_t menu_rx_tiles[] = {
 	{ "RTTY", icon_rtty, SCR_RTTY_RX },
+	// ACARS is not exposed: the DM32's FD6818 does not give a clean ACARS baseband (the type-7 AM word is
+	// silent and the FM slope path is differentiated). The screen and app stay in the tree for later work.
 };
 #define MENU_RX_TILES	(sizeof(menu_rx_tiles) / sizeof(menu_rx_tiles[0]))
 #endif
@@ -6019,8 +6036,27 @@ static const menu_tx_tile_t menu_rx_tiles[] = {
 #if CONFIG_FM_TRX
 static const menu_tx_tile_t menu_trx_tiles[] = {
 	{ "FM", icon_trx, SCR_FM_TRX },
+#if CONFIG_BBS
+	{ "BBS", icon_burst, SCR_HUB },
+#endif
 };
 #define MENU_TRX_TILES	(sizeof(menu_trx_tiles) / sizeof(menu_trx_tiles[0]))
+#endif
+
+// Experimental: apps that are in the tree but not ready for the main RX/TX grids (ACARS and POCSAG today)
+#if CONFIG_ACARS || CONFIG_POCSAG
+static const menu_tx_tile_t menu_exp_tiles[] = {
+#if CONFIG_ACARS
+	{ "ACARS", icon_acars, SCR_ACARS },
+#endif
+#if CONFIG_POCSAG
+	{ "POCSAG RX", icon_pulse, SCR_POCSAG },
+	{ "POCSAG TX", icon_burst, SCR_POCSAG_TX },
+#endif
+};
+#define MENU_EXP_TILES	(sizeof(menu_exp_tiles) / sizeof(menu_exp_tiles[0]))
+#else
+#define MENU_EXP_TILES	0
 #endif
 
 static uint16_t menu_count(uint16_t menu)
@@ -6039,6 +6075,8 @@ static uint16_t menu_count(uint16_t menu)
 	if (menu == MENU_TRX)
 		return MENU_TRX_TILES;
 #endif
+	if (menu == MENU_EXP)
+		return MENU_EXP_TILES;
 	return 0;
 }
 
@@ -6058,6 +6096,10 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 	if (menu == MENU_TRX)
 		return i < MENU_TRX_TILES ? menu_trx_tiles[i].label : "";
 #endif
+#if CONFIG_ACARS || CONFIG_POCSAG
+	if (menu == MENU_EXP)
+		return i < MENU_EXP_TILES ? menu_exp_tiles[i].label : "";
+#endif
 	return "";
 }
 
@@ -6067,6 +6109,7 @@ static const char *menu_title(uint16_t menu)
 	case MENU_RX: return "RX";
 	case MENU_TX: return "TX";
 	case MENU_TRX: return "TRX";
+	case MENU_EXP: return "EXP";
 	default: return NULL;
 	}
 }
@@ -6094,15 +6137,22 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
+#if CONFIG_ACARS || CONFIG_POCSAG
+	if (menu == MENU_EXP) {
+		if (i < MENU_EXP_TILES)
+			menu_exp_tiles[i].icon(ox, oy, s, c);
+		return;
+	}
+#endif
 	if (menu != MENU_TOP)
 		return;
 	switch (i) {
 	case MT_RX: icon_rx(ox, oy, s, c); break;
 	case MT_TX: icon_tx(ox, oy, s, c); break;
 	case MT_TRX: icon_trx(ox, oy, s, c); break;
-	case MT_ABOUT: icon_info(ox, oy, s, c); break;
-	case MT_CONFIG: icon_sliders(ox, oy, s, c); break;
 	case MT_DIAG: icon_pulse(ox, oy, s, c); break;
+	case MT_EXP: icon_burst(ox, oy, s, c); break;
+	case MT_ABOUT: icon_info(ox, oy, s, c); break;
 	default: break;
 	}
 }
@@ -6130,15 +6180,22 @@ static void menu_activate(uint16_t menu, uint16_t i)
 		return;
 	}
 #endif
+#if CONFIG_ACARS || CONFIG_POCSAG
+	if (menu == MENU_EXP) {
+		if (i < MENU_EXP_TILES)
+			ui_push(menu_exp_tiles[i].scr, 0);
+		return;
+	}
+#endif
 	if (menu != MENU_TOP)
 		return;
 	switch (i) {
 	case MT_RX: ui_push(SCR_MENU, MENU_RX); break;
 	case MT_TX: ui_push(SCR_MENU, MENU_TX); break;
 	case MT_TRX: ui_push(SCR_MENU, MENU_TRX); break;
-	case MT_ABOUT: ui_push(SCR_ABOUT, 0); break;
-	case MT_CONFIG: ui_push(SCR_SETTINGS, 0); break;
 	case MT_DIAG: ui_push(SCR_DIAG, 0); break;
+	case MT_EXP: ui_push(SCR_MENU, MENU_EXP); break;
+	case MT_ABOUT: ui_push(SCR_ABOUT, 0); break;
 	default: break;
 	}
 }
@@ -8228,7 +8285,10 @@ static bool rtty_rx_pump(void)
 	}
 	int16_t buf[160];
 	uint16_t n;
-	while ((n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0) {
+	// At most a few reads a tick: the demodulator runs in this (UI) task, and a full ring drained in one go
+	// kept the task from feeding the watchdog when the audio outpaced it
+	for (int budget = 8; budget > 0 && (n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0;
+	     budget--) {
 		if (rx) {
 			rtty_rx_feed(&rtty_rx, buf, n);
 		}
@@ -8466,6 +8526,528 @@ static const ui_scr_def_t rtty_rx_screen = {
 #endif	// CONFIG_RTTY_RX
 
 
+#if CONFIG_ACARS
+// ======================= ACARS receive (CONFIG_ACARS) =======================
+// Airband AM, 2400 bps MSK. The app tunes the VFO (the radio core receives the air band in AM), starts the 8 kHz
+// receive audio and decodes in the UI tick. Scan visits the enabled channels, dwells on each, and pauses 5 s on a
+// channel after a message so the rest of the burst is heard. The protocol is in core/acars.
+
+enum { ACARS_ROW_FREQ, ACARS_ROW_SCAN, ACARS_ROW_DWELL, ACARS_ROW_CHANNELS, ACARS_ROW_MESSAGES, ACARS_ROW_CLEAR,
+       ACARS_ROW_DEBUG, ACARS_ROW_STATUS, ACARS_ROW_COUNT };
+
+#define ACARS_LOG_N	8
+#define ACARS_LINE_MAX	96
+
+typedef struct {
+	uint32_t hz;
+	const char *name;
+	bool on;
+} acars_ch_t;
+
+// US channels on by default; the European and Asian ones are one OK away
+static acars_ch_t acars_ch[] = {
+	{ 131550000u, "131.550  US", true },
+	{ 130025000u, "130.025  US", true },
+	{ 130425000u, "130.425  US", true },
+	{ 130450000u, "130.450  US", true },
+	{ 131125000u, "131.125  US", true },
+	{ 129125000u, "129.125  US", true },
+	{ 136700000u, "136.700  US", true },
+	{ 136750000u, "136.750  US", true },
+	{ 136800000u, "136.800  US", true },
+	{ 136850000u, "136.850  US", true },
+	{ 131725000u, "131.725  EU", false },
+	{ 131525000u, "131.525  EU", false },
+	{ 131850000u, "131.850  EU", false },
+	{ 131450000u, "131.450  JP", false },
+	{ 131475000u, "131.475  CA", false },
+	{ 129525000u, "129.525  ??", false },
+};
+#define ACARS_CH_N	(sizeof acars_ch / sizeof acars_ch[0])
+
+static const uint8_t acars_dwells[] = { 1, 2, 3, 5 };
+static const char *const acars_dwell_names[] = { "1 s", "2 s", "3 s", "5 s" };
+
+// The RF chip's AF output words for the AM bring-up sweep: type<<8 with the bases the BK4819/FD6818 class
+// uses (0x0, 0x6000, 0x7000), all 16 demodulator types. The app's tune writes FD6818_AF_AM (0x0740).
+static const uint16_t acars_af_words[] = {
+	0x0040u, 0x0140u, 0x0240u, 0x0340u, 0x0440u, 0x0540u, 0x0640u, 0x0740u,
+	0x0840u, 0x0940u, 0x0a40u, 0x0b40u, 0x0c40u, 0x0d40u, 0x0e40u, 0x0f40u,
+	0x6040u, 0x6140u, 0x6240u, 0x6340u, 0x6440u, 0x6540u, 0x6640u, 0x6740u,
+	0x6840u, 0x6940u, 0x6a40u, 0x6b40u, 0x6c40u, 0x6d40u, 0x6e40u, 0x6f40u,
+	0x7040u, 0x7140u, 0x7240u, 0x7340u, 0x7440u, 0x7540u, 0x7640u, 0x7740u,
+	0x7840u, 0x7940u, 0x7a40u, 0x7b40u, 0x7c40u, 0x7d40u, 0x7e40u, 0x7f40u,
+};
+static uint8_t acars_af_idx;
+
+static acars_rx_t acars_rx;
+static bool acars_on;			// the receive audio is open
+static bool acars_scan;
+static bool acars_tuning;		// the radio is changing channel: drop the audio
+static bool acars_new;
+static uint8_t acars_ch_idx;		// the scan's channel
+static uint8_t acars_dwell_idx = 1;
+static uint32_t acars_hz = 131550000u;	// the manual frequency
+static uint32_t acars_cur_hz = 131550000u;
+static uint32_t acars_tune_ms, acars_next_ms, acars_pause_ms, acars_dbg_ms;
+static int8_t acars_edit = -1;
+static char acars_digits[UI_ENTRY_MAX + 1];
+static uint8_t acars_len;
+
+static acars_msg_t acars_log[ACARS_LOG_N];
+static uint32_t acars_log_hz[ACARS_LOG_N];
+static uint32_t acars_log_ms[ACARS_LOG_N];
+static uint8_t acars_nlog, acars_next;
+static char acars_line[ACARS_LINE_MAX];
+static char acars_msgs_buf[640];
+
+static uint8_t acars_on_count(void)
+{
+	uint8_t n = 0;
+	for (uint8_t i = 0; i < ACARS_CH_N; i++) {
+		if (acars_ch[i].on) {
+			n++;
+		}
+	}
+	return n;
+}
+
+static void acars_cb(const acars_msg_t *m, void *ctx)
+{
+	(void)ctx;
+	uint32_t now = hal_millis();
+	if (acars_nlog != 0) {
+		uint8_t last = (uint8_t)((acars_next + ACARS_LOG_N - 1u) % ACARS_LOG_N);
+		if (strcmp(acars_log[last].addr, m->addr) == 0 && strcmp(acars_log[last].text, m->text) == 0 &&
+		    now - acars_log_ms[last] < 3000u) {
+			return;	// the transmitter's repeat
+		}
+	}
+	acars_log[acars_next] = *m;
+	acars_log_hz[acars_next] = acars_cur_hz;
+	acars_log_ms[acars_next] = now;
+	acars_next = (uint8_t)((acars_next + 1u) % ACARS_LOG_N);
+	if (acars_nlog < ACARS_LOG_N) {
+		acars_nlog++;
+	}
+	acars_new = true;
+	if (acars_scan) {
+		acars_pause_ms = now + 5000u;	// the 5 s pause after a message
+	}
+	ui_dirty();
+}
+
+static void acars_clear(void)
+{
+	acars_nlog = 0;
+	acars_next = 0;
+	ui_dirty();
+}
+
+static void acars_flush(void)
+{
+	if (board.afsk == NULL || board.afsk->rx_read == NULL) {
+		return;
+	}
+	int16_t buf[160];
+	while (board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0])) != 0) { }
+}
+
+static void acars_tune(uint32_t hz)
+{
+	acars_cur_hz = hz;
+	radio_req_vfo(true);
+	radio_req_vfo_set(hz);
+	radio_req_mode(RADIO_MODE_FM);
+	acars_flush();
+	(void)acars_rx_init(&acars_rx, 8000u, acars_cb, NULL);
+	acars_tuning = true;
+	acars_tune_ms = hal_millis() + 300u;
+	acars_new = true;
+}
+
+static void acars_scan_next(void)
+{
+	if (acars_on_count() == 0) {
+		acars_scan = false;
+		ui_toast("No channels on");
+		return;
+	}
+	for (uint8_t k = 1; k <= ACARS_CH_N; k++) {
+		uint8_t i = (uint8_t)((acars_ch_idx + k) % ACARS_CH_N);
+		if (acars_ch[i].on) {
+			acars_ch_idx = i;
+			acars_tune(acars_ch[i].hz);
+			acars_next_ms = hal_millis() + (uint32_t)acars_dwells[acars_dwell_idx] * 1000u;
+			acars_pause_ms = 0;
+			return;
+		}
+	}
+	acars_scan = false;
+}
+
+static void acars_scan_start(void)
+{
+	if (acars_on_count() == 0) {
+		acars_scan = false;
+		ui_toast("No channels on");
+		return;
+	}
+	acars_scan = true;
+	acars_ch_idx = (uint8_t)(ACARS_CH_N - 1u);	// wrap to the first enabled
+	acars_scan_next();
+}
+
+static void acars_start(void)
+{
+	if (board.afsk == NULL || board.afsk->rx_start == NULL || board.afsk->rx_read == NULL) {
+		ui_toast("ACARS: no audio path");
+		return;
+	}
+	if (!acars_on) {
+		if (!board.afsk->rx_start()) {
+			ui_toast("ACARS: audio busy");
+			return;
+		}
+		acars_on = true;
+	}
+	acars_tune(acars_cur_hz);
+	if (acars_scan) {
+		acars_next_ms = hal_millis() + (uint32_t)acars_dwells[acars_dwell_idx] * 1000u;
+	}
+}
+
+static void acars_stop(void)
+{
+	acars_scan = false;
+	if (acars_on) {
+		if (board.afsk != NULL && board.afsk->rx_stop != NULL) {
+			board.afsk->rx_stop();
+		}
+		acars_on = false;
+	}
+}
+
+void ui_acars_stop(void)
+{
+	acars_stop();
+}
+
+static bool acars_tick(uint32_t now)
+{
+	if (!acars_on || board.afsk == NULL || board.afsk->rx_read == NULL) {
+		return false;
+	}
+	if (acars_tuning && now >= acars_tune_ms) {
+		acars_tuning = false;
+	}
+	int16_t buf[160];
+	uint16_t n;
+	// At most a few reads a tick: the demodulator runs in this (UI) task, and a full ring drained in one go
+	// kept the task from feeding the watchdog when the audio outpaced it
+	for (int budget = 8; budget > 0 && (n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0;
+	     budget--) {
+		if (!acars_tuning) {
+			acars_rx_feed(&acars_rx, buf, n);
+		}
+	}
+	if (acars_scan && !acars_tuning) {
+		if (acars_pause_ms != 0) {
+			if (now >= acars_pause_ms) {
+				acars_scan_next();
+			}
+		} else if (now >= acars_next_ms) {
+			acars_scan_next();
+		} else if (ui_view()->state == RS_RX && now + 600u >= acars_next_ms) {
+			acars_next_ms = now + 1200u;	// a carrier near the end: listen a little longer
+		}
+	}
+	bool redraw = acars_new;
+	acars_new = false;
+	if (ui_frame()->focus == ACARS_ROW_DEBUG && now - acars_dbg_ms >= 250u) {
+		acars_dbg_ms = now;
+		redraw = true;
+	}
+	return redraw;
+}
+
+static void acars_freq_digits(uint32_t hz)
+{
+	acars_len = UI_ENTRY_MAX;
+	uint32_t v = hz / 10u;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		acars_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	acars_digits[UI_ENTRY_MAX] = '\0';
+}
+
+static uint16_t acars_count(void) { return ACARS_ROW_COUNT; }
+static uint16_t acars_msgs_count(void) { return 0; }
+
+static void acars_item(uint16_t i, ui_item_t *it)
+{
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = acars_edit == (int8_t)i;
+	switch (i) {
+	case ACARS_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, "Frequency");
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, acars_len != 0 ? acars_digits : "type digits");
+		} else {
+			sb_freq(&b, acars_cur_hz);
+		}
+		break;
+	case ACARS_ROW_SCAN:
+		str_copy(it->label, sizeof it->label, "Scan");
+		sb_str(&b, acars_scan ? "On" : "Off");
+		break;
+	case ACARS_ROW_DWELL:
+		str_copy(it->label, sizeof it->label, "Dwell");
+		sb_str(&b, acars_dwell_names[acars_dwell_idx & 3u]);
+		break;
+	case ACARS_ROW_CHANNELS:
+		str_copy(it->label, sizeof it->label, "Channels");
+		sb_u32(&b, acars_on_count(), 1);
+		sb_chr(&b, '/');
+		sb_u32(&b, (uint32_t)ACARS_CH_N, 1);
+		break;
+	case ACARS_ROW_MESSAGES:
+		str_copy(it->label, sizeof it->label, "Messages");
+		if (acars_nlog != 0) {
+			sb_u32(&b, acars_nlog, 1);
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	case ACARS_ROW_CLEAR:
+		str_copy(it->label, sizeof it->label, "Clear messages");
+		break;
+	case ACARS_ROW_DEBUG:
+		str_copy(it->label, sizeof it->label, "Debug");
+		sb_str(&b, "af ");
+		sb_u32(&b, acars_af_idx, 1);
+		sb_str(&b, " l ");
+		sb_i32(&b, (int32_t)(10.0f * log10f(acars_rx.level_sum /
+			(acars_rx.bit_count != 0 ? (float)acars_rx.bit_count : 1.0f) + 1e-9f)));
+		sb_str(&b, " s ");
+		sb_u32(&b, acars_rx.samples, 1);
+		break;
+	case ACARS_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, "Status");
+		if (acars_scan) {
+			sb_str(&b, "Scan ");
+			sb_freq(&b, acars_cur_hz);
+		} else if (acars_on) {
+			sb_str(&b, "Listen ");
+			sb_freq(&b, acars_cur_hz);
+		} else {
+			sb_str(&b, "Ready");
+		}
+		sb_str(&b, " c ");
+		sb_u32(&b, acars_rx.frames, 1);
+		sb_str(&b, " e ");
+		sb_u32(&b, acars_rx.errors, 1);
+		break;
+	default:
+		break;
+	}
+}
+
+static void acars_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case ACARS_ROW_FREQ:
+		acars_scan = false;
+		acars_edit = (int8_t)i;
+		acars_freq_digits(acars_cur_hz);
+		break;
+	case ACARS_ROW_SCAN:
+		if (acars_scan) {
+			acars_scan = false;
+			acars_hz = acars_cur_hz;
+		} else {
+			acars_scan_start();
+		}
+		break;
+	case ACARS_ROW_DWELL:
+		acars_dwell_idx = (uint8_t)((acars_dwell_idx + 1u) & 3u);
+		if (acars_scan && acars_pause_ms == 0) {
+			acars_next_ms = hal_millis() + (uint32_t)acars_dwells[acars_dwell_idx] * 1000u;
+		}
+		break;
+	case ACARS_ROW_CHANNELS:
+		ui_push(SCR_ACARS_CH, 0);
+		break;
+	case ACARS_ROW_MESSAGES:
+		ui_push(SCR_ACARS_MSGS, 0);
+		break;
+	case ACARS_ROW_CLEAR:
+		acars_clear();
+		ui_toast("Cleared");
+		break;
+	case ACARS_ROW_DEBUG:
+		acars_af_idx = (uint8_t)((acars_af_idx + 1u) % (sizeof acars_af_words / sizeof acars_af_words[0]));
+		if (board.radio != NULL && board.radio->debug_af != NULL) {
+			board.radio->debug_af(acars_af_words[acars_af_idx]);
+		}
+		acars_rx.level_sum = 0;
+		acars_rx.bit_count = 0;
+		ui_toast("AF word set");
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool acars_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (acars_edit >= 0) {
+		int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+		if (d >= 0 && (press || ev->gesture == GESTURE_LONG)) {
+			if (acars_len >= UI_ENTRY_MAX) {
+				acars_len = 0;	// the first digit replaces the value shown
+			}
+			(void)ui_freq_entry_digit(acars_digits, &acars_len, (char)('0' + d));
+			return true;
+		}
+		if (ev->action == ACT_BACK && press) {
+			if (acars_len != 0) {
+				acars_digits[--acars_len] = '\0';
+			} else {
+				acars_edit = -1;
+			}
+			return true;
+		}
+		if (ev->action == ACT_CONTEXT && press) {
+			acars_edit = -1;
+			return true;
+		}
+		if (ev->action == ACT_SELECT && press) {
+			uint32_t hz = ui_freq_entry_hz(acars_digits, acars_len);
+			if (hz != 0) {
+				if (!radio_am_band(hz)) {
+					ui_toast("Air band only");
+				} else {
+					acars_hz = hz;
+					acars_scan = false;
+					acars_cur_hz = hz;
+					acars_start();
+				}
+			}
+			acars_edit = -1;
+			return true;
+		}
+		return true;		// while a value is being typed it owns the keys
+	}
+	if (ev->action == ACT_BACK && press) {
+		acars_stop();
+		ui_toast("Stopped");
+	}
+	return false;			// the list's Back leaves the screen
+}
+
+static void acars_enter(void)
+{
+	acars_edit = -1;
+	acars_start();
+}
+
+static const char *acars_body(void)
+{
+	sbuf_t b;
+	sb_init(&b, acars_line, sizeof acars_line);
+	if (acars_nlog != 0) {
+		uint8_t last = (uint8_t)((acars_next + ACARS_LOG_N - 1u) % ACARS_LOG_N);
+		sb_str(&b, acars_log[last].addr);
+		sb_chr(&b, ' ');
+		sb_str(&b, acars_log[last].text);
+		return acars_line;
+	}
+	if (acars_scan) {
+		sb_str(&b, "Scanning ");
+	} else if (acars_on) {
+		sb_str(&b, "Listening ");
+	} else {
+		sb_str(&b, "ACARS ");
+	}
+	sb_freq(&b, acars_cur_hz);
+	return acars_line;
+}
+
+static const char *acars_msgs_body(void)
+{
+	sbuf_t b;
+	sb_init(&b, acars_msgs_buf, sizeof acars_msgs_buf);
+	if (acars_nlog == 0) {
+		sb_str(&b, "No messages yet");
+		return acars_msgs_buf;
+	}
+	uint8_t first = acars_nlog > 3 ? (uint8_t)(acars_nlog - 3u) : 0;
+	for (uint8_t k = first; k < acars_nlog; k++) {
+		uint8_t idx = (uint8_t)((acars_next + ACARS_LOG_N - acars_nlog + k) % ACARS_LOG_N);
+		sb_str(&b, acars_log[idx].addr);
+		sb_chr(&b, ' ');
+		sb_str(&b, acars_log[idx].label);
+		sb_chr(&b, ' ');
+		sb_str(&b, acars_log[idx].text);
+		sb_chr(&b, '\n');
+	}
+	return acars_msgs_buf;
+}
+
+static bool acars_msgs_key(const input_event_t *ev)
+{
+	bool press = ev->gesture == GESTURE_PRESS;
+	if (press && (ev->action == ACT_SELECT || ev->action == ACT_CONTEXT)) {
+		acars_clear();
+		ui_toast("Cleared");
+		return true;
+	}
+	return false;			// Back pops
+}
+
+static uint16_t acars_ch_count(void) { return (uint16_t)ACARS_CH_N; }
+
+static void acars_ch_item(uint16_t i, ui_item_t *it)
+{
+	str_copy(it->label, sizeof it->label, acars_ch[i].name);
+	str_copy(it->value, sizeof it->value, acars_ch[i].on ? "On" : "Off");
+}
+
+static void acars_ch_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	acars_ch[i].on = !acars_ch[i].on;
+	ui_dirty();
+}
+
+static const ui_scr_def_t acars_screen = {
+	.name = "acars", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("ACARS"),
+	.hint = TRN("OK change  Back"),
+	.count = acars_count, .item = acars_item, .select = acars_select, .key = acars_key, .enter = acars_enter,
+	.tick = acars_tick, .body = acars_body,
+};
+
+static const ui_scr_def_t acars_msgs_screen = {
+	.name = "acars-msgs", .flags = SF_LIST | SF_FIELD, .prefix = TRN("ACARS Messages"),
+	.hint = TRN("OK clear  Back"),
+	.count = acars_msgs_count, .key = acars_msgs_key, .tick = acars_tick, .body = acars_msgs_body,
+};
+
+static const ui_scr_def_t acars_ch_screen = {
+	.name = "acars-ch", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("ACARS Channels"),
+	.hint = TRN("OK on/off  Back"),
+	.count = acars_ch_count, .item = acars_ch_item, .select = acars_ch_select, .tick = acars_tick,
+};
+#endif	// CONFIG_ACARS
+
+
 #if CONFIG_POCSAG
 // ======================= POCSAG (CONFIG_POCSAG): an RX app and a TX app =======================
 // RX (SCR_POCSAG): tune the VFO to the pager channel, start the FM receive audio and decode pages in the UI tick.
@@ -8555,7 +9137,10 @@ static bool pocsag_rx_tick(uint32_t now)
 	}
 	int16_t buf[160];
 	uint16_t n;
-	while ((n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0) {
+	// At most a few reads a tick: the demodulator runs in this (UI) task, and a full ring drained in one go
+	// kept the task from feeding the watchdog when the audio outpaced it
+	for (int budget = 8; budget > 0 && (n = board.afsk->rx_read(buf, (uint16_t)(sizeof buf / sizeof buf[0]))) != 0;
+	     budget--) {
 		pocsag_rx_feed(&pocsag_rx, buf, n);
 	}
 	bool redraw = pocsag_new;
@@ -9384,6 +9969,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #if CONFIG_RTTY_RX
 	[SCR_RTTY_RX] = &rtty_rx_screen,
 	[SCR_RTTY_MSGS] = &rtty_msgs_screen,
+#endif
+#if CONFIG_ACARS
+	[SCR_ACARS] = &acars_screen, [SCR_ACARS_MSGS] = &acars_msgs_screen, [SCR_ACARS_CH] = &acars_ch_screen,
 #endif
 #if CONFIG_POCSAG
 	[SCR_POCSAG] = &pocsag_rx_screen, [SCR_POCSAG_TX] = &pocsag_tx_screen, [SCR_POCSAG_MSGS] = &pocsag_pages_screen,

@@ -321,6 +321,11 @@
 #ifndef CONFIG_RTTY_RX
 #define CONFIG_RTTY_RX			(CONFIG_RTTY_TX && CONFIG_APRS_RX)
 #endif
+// The ACARS receiver (core/acars): MSK on the AM airband audio (the same 8 kHz receive ring). Needs FM, AM_RX, APRS_RX
+// (the audio path) and DMR (the C7000 receive audio glue)
+#ifndef CONFIG_ACARS
+#define CONFIG_ACARS			(CONFIG_AM_RX && CONFIG_APRS_RX && CONFIG_DMR)
+#endif
 #ifndef CONFIG_APRS_IGATE
 #define CONFIG_APRS_IGATE		(CONFIG_APRS_RX && CONFIG_HOSTLINK)
 #endif

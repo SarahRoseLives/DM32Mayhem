@@ -26,6 +26,8 @@
 #include "task.h"
 #include "vocoder/ambe2_flags.h"
 
+#if CONFIG_DMR_CODEC
+
 #ifndef RFOUNDRY_BOARD_ID
 #error "the Makefile defines RFOUNDRY_BOARD_ID (the board's id, the codec profile prefix)"
 #endif
@@ -282,4 +284,27 @@ uint16_t hrc_vocoder_tag(void)
 	return presence == 1 ? (uint16_t)slot->stock_tag : 0;
 }
 
+#else	// !CONFIG_DMR_CODEC: no codec state, DMR voice off (the modem/glue that the apps need stays)
+
+static bool present(void) { return false; }
+static void reset(void) {}
+static void encode(const int16_t pcm[VOCODER_FRAME_SAMPLES], uint8_t bits[VOCODER_BITS])
+{
+	(void)pcm;
+	memset(bits, 0, VOCODER_BITS);
+}
+static void decode(const uint8_t bits[VOCODER_BITS], int16_t pcm[VOCODER_FRAME_SAMPLES])
+{
+	(void)bits;
+	memset(pcm, 0, VOCODER_FRAME_SAMPLES * sizeof(int16_t));
+}
+
+const hal_vocoder_t hrc_vocoder = {
+	.present = present, .reset = reset, .encode = encode, .decode = decode,
+};
+
+uint16_t hrc_vocoder_tag(void) { return 0; }
+void hrc_vocoder_park(void) {}
+
+#endif	// CONFIG_DMR_CODEC
 #endif	// CONFIG_DMR

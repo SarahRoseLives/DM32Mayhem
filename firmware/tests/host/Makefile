@@ -371,6 +371,17 @@ run-rtty: rttyRxTest
 	./rttyRxTest
 .PHONY: run-rtty
 
+# ACARS: the MSK demodulator and frame parser against a raw 8 kHz s16 audio sample (the sigidwiki IQ sample by
+# default; skipped when it is not there, so the tree stays free of the recording)
+TESTS   += acarsTest
+acarsTest: acarsTest.c $(CORE)/acars/acars.c $(CORE)/acars/acars.h
+	$(CC) $(CFLAGS) -o $@ acarsTest.c $(CORE)/acars/acars.c -lm
+
+run: run-acars
+run-acars: acarsTest
+	./acarsTest
+.PHONY: run-acars
+
 # The SKY72310 synthesizer's divider words against the data sheet and a register model, the HR_C5000 variant of the
 # HR_C6000 driver, and the GPS NMEA line framing and receive ring the GPS drivers share
 TESTS   += sky72310Test hrc5000Test nmeaLineTest gpsRxTest

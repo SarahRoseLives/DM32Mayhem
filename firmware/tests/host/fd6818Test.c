@@ -301,7 +301,7 @@ static void test_am(void)
 	reset_chip();
 	fd6818_attach(&dev, bus());
 	fd6818_set_am(&dev, true);
-	CHECK(chip.n == 1 && chip.log[0].reg == FD6818_REG_AF && chip.log[0].val == 0x0740);
+	CHECK(chip.n == 1 && chip.log[0].reg == FD6818_REG_AF && chip.log[0].val == FD6818_AF_AM);
 	CHECK((FD6818_AF_AM & ~0x0F00u) == (FD6818_AF_FM & ~0x0F00u));
 	fd6818_set_am(&dev, false);
 	CHECK(chip.n == 2 && chip.log[1].val == 0x0140);

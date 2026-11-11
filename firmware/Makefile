@@ -112,6 +112,9 @@ endif
 ifneq ($(filter y,$(CONFIG_RTTY_TX) $(CONFIG_RTTY_RX)),)
 CORE_DIRS += core/rtty
 endif
+ifeq ($(CONFIG_ACARS),y)
+CORE_DIRS += core/acars
+endif
 ifeq ($(CONFIG_POCSAG),y)
 CORE_DIRS += core/pocsag
 endif

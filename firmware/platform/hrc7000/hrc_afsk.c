@@ -146,7 +146,9 @@ static bool tx_start(const uint8_t *t, uint16_t n, uint16_t baud, uint16_t mark,
 	nbits = n;
 	int32_t a = (int32_t)level * hooks->amp_per_level;
 	amp = (int16_t)(a > 32000 ? 32000 : a);
+#if CONFIG_POCSAG
 	baseband = false;
+#endif
 	afsk_mod_init(&mod, 8000u);
 	afsk_mod_tone(&mod, baud, mark, space);
 	done = false;

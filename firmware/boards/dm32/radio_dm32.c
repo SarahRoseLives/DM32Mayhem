@@ -285,16 +285,19 @@ static bool rx_tune(uint32_t hz, radio_bw_t bw, const subtone_t *tone, bool am)
 	} else {
 		fd6818_set_bandwidth(&fd, fm_bw_reg(bw));
 		fd6818_set_state(&fd, FD6818_STATE_RX);
+		// 0x73 is the AFC: the DM32 driver never wrote it, so the chip kept whatever DMR/analog mode it was
+		// left in (the audio centre wandered). 0x4E42 is the analog AFC the FD6818SH driver uses (fd6818sh.c)
+		fd6818_write(&fd, 0x73, 0x4E42u);
 		hrc_dac_b_power(false);
 		hrc7000_fm_rx(&modem, bw == RADIO_BW_25K);
 		hrc7000_audio_bits(&modem, 0, C7_AUDIO_FM_PLAY);	// FM plays on the analog path (speaker_source)
 		// The FD6818 detects the tone on its own demodulated audio: the C7000's detector gets no audio while the
 		// FD6818 plays FM to the speaker (hardware-dm32.md 8.4)
 		fd6818_set_rx_tone(&fd, fd_tone(tone != NULL ? tone->type : TONE_NONE), tone != NULL ? tone->value : 0);
-		if (am != rx_am_on) {
-			fd6818_set_am(&fd, am);
-			rx_am_on = am;
-		}
+		// Always after the state: the RX sequence writes the FM AF word, so the cached value alone
+		// would leave an AM channel back on FM after any retune
+		fd6818_set_am(&fd, am);
+		rx_am_on = am;
 		if (aprs_listen || p25_listen) {
 			fd6818_write(&fd, FD_AF_FILTER_REG, FD_AF_FLAT);	// the modem taps the FM audio: no voice high-pass
 		}
@@ -486,6 +489,13 @@ static void aprs_listen_route(bool on)
 	hrc_irq_restore(s);
 }
 #endif
+
+// Bring-up: write the RF chip's AF output word directly (the AM demodulator type sweep)
+static bool debug_af(uint16_t word)
+{
+	fd6818_write(&fd, FD6818_REG_AF, word);
+	return true;
+}
 
 // The P25 probe takes the RF chip's discriminator into the HR_C7000 (hal_radio_t.audio_to_modem): the same route as
 // APRS listening, but independent of it, so it works in a build without APRS
@@ -933,6 +943,7 @@ const hal_radio_t dm32_radio = {
 	.status = status,
 	.audio = audio,
 	.audio_to_modem = audio_to_modem,
+	.debug_af = debug_af,
 	.volume = NULL,
 #if CONFIG_REF_TRIM
 	.ref_trim = ref_trim,

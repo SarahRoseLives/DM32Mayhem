@@ -44,6 +44,9 @@ typedef enum {
 	SCR_RTTY_TX,			// the RTTY transmitter (CONFIG_RTTY_TX, core/rtty)
 	SCR_RTTY_RX,			// the RTTY receiver (CONFIG_RTTY_RX, core/rtty)
 	SCR_RTTY_MSGS,			// the RTTY receiver's received text, full screen
+	SCR_ACARS,			// the ACARS receiver (CONFIG_ACARS, core/acars)
+	SCR_ACARS_MSGS,			// the ACARS messages, full screen
+	SCR_ACARS_CH,			// the ACARS scan channels and which are on
 	SCR_POCSAG,			// the POCSAG pager receiver (CONFIG_POCSAG)
 	SCR_POCSAG_TX,			// the POCSAG pager transmitter (CONFIG_POCSAG)
 	SCR_POCSAG_MSGS,		// the pages the POCSAG receiver heard
@@ -112,6 +115,8 @@ void ui_toast(const char *text);
 void ui_pocsag_stop(void);
 // Stop the RTTY receiver's audio if it is running
 void ui_rtty_rx_stop(void);
+// Stop the ACARS receiver's audio and scan if it is running
+void ui_acars_stop(void);
 // Save temporary channel changes and tell the user why a save cannot start
 bool ui_try_save_channel(void);
 void ui_dirty(void);

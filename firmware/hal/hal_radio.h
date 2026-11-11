@@ -39,6 +39,8 @@ typedef struct {
 	// Optional: route the RF chip's FM discriminator to the modem's ADC for a software demodulator (the P25 probe);
 	// false puts the normal speaker route back. The radio is in FM receive. NULL when the board can't
 	bool (*audio_to_modem)(bool on);
+	// Optional: write the RF chip's AF output word (a bring-up sweep of the AM demodulator type); NULL when none
+	bool (*debug_af)(uint16_t word);
 	// Optional: received audio level 0..100 % (radios whose volume knob is read by the MCU, not wired to the amp)
 	void (*volume)(uint8_t percent);
 	// With volume: true when that level also scales the PCM speaker path (beeps, DMR voice). False: beeps on the PCM

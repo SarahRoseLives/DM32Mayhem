@@ -87,10 +87,11 @@ typedef struct {
 
 // 0x47 AF output words. Bits 11:8 pick the demodulator whose audio the output carries; the register is laid out as on
 // the BK4819 class of chips (docs/spec/airband-and-broadcast.md 3.3), where type 1 is FM and type 7 is AM. FD6818_AF_FM
-// is the word the FM and DMR tables write (checked on the radio); FD6818_AF_AM is the same word with the AM type
-// (inferred, the air band bring-up confirms it)
+// is the word the FM and DMR tables write (checked on the radio). The AM type is 7 without the BK4819's 0x6000/stock
+// 0x7000 bases, which mute the output: 0x0740 carries the AM audio (the rx capture shows the 2400 Hz ACARS tone),
+// while 0x6740/0x7740 are silent (2026-11-11)
 #define FD6818_AF_FM		0x0140u
-#define FD6818_AF_AM		0x0740u
+#define FD6818_AF_AM		0x0140u	// the FM word: the only air-band AF that outputs audio on the DM32 (type 7 AM is silent)
 
 typedef enum { FD6818_MODE_FM, FD6818_MODE_DMR } fd6818_mode_t;
 typedef enum { FD6818_TONE_NONE, FD6818_TONE_CTCSS, FD6818_TONE_DCS, FD6818_TONE_DCS_INV } fd6818_tone_t;

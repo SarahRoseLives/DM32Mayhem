@@ -1186,6 +1186,18 @@
       }
     },
     {
+      "name": "RTTY_RX",
+      "help": "The RTTY RX app (core/rtty): ITA2 receive from the FM receive audio. Needs FM and APRS_RX (the audio path)",
+      "default": "$(CONFIG_RTTY_TX)",
+      "needs": {
+        "all": [
+          "FM",
+          "APRS_RX"
+        ],
+        "any": []
+      }
+    },
+    {
       "name": "VOX",
       "help": "FM VOX: voice-operated transmit from the microphone level (needs FM; unverified on the bench)",
       "default": "$(CONFIG_FM)",
@@ -1546,6 +1558,15 @@
           "APRS_RX",
           "DMR"
         ],
+        "any": []
+      }
+    },
+    {
+      "name": "FM_TRX",
+      "help": "The FM transceiver app (core/ui): a tuned VFO with live PTT, the one screen that talks in a CONFIG_NO_PTT build. Needs FM",
+      "default": "$(CONFIG_FM)",
+      "needs": {
+        "all": [],
         "any": []
       }
     },

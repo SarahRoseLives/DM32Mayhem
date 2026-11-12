@@ -16,7 +16,7 @@
 typedef enum {
 	SCR_HOME, SCR_QUICK, SCR_HUB, SCR_MENU, SCR_FIND, SCR_ACTIONS, SCR_CONTACTS, SCR_MESSAGES, SCR_MESSAGE, SCR_COMPOSE,
 	SCR_RECENT, SCR_ZONES, SCR_ZONE, SCR_TOOLS, SCR_SETTINGS, SCR_GROUP, SCR_PICKER, SCR_INFO, SCR_CONFIRM,
-	SCR_DIAG, SCR_EMERGENCY, SCR_SCAN, SCR_ROAM, SCR_APRS, SCR_APRS_HEARD, SCR_APRS_POS, SCR_ABOUT,
+	SCR_DIAG, SCR_EMERGENCY, SCR_SCAN, SCR_ROAM, SCR_APRS, SCR_APRS_HEARD, SCR_APRS_POS, SCR_KISS_TNC, SCR_ABOUT,
 	SCR_VOLUME,			// the volume editor (VOL key, radios without a knob)
 	SCR_CHANNELS, SCR_CHANNEL,	// every codeplug channel by number; one channel's settings (arg = its number)
 	SCR_CRASH,			// the crash log's record (arg 1: the prompt after the restart; CONFIG_CRASH_SCREEN)
@@ -101,6 +101,9 @@ typedef struct {
 } ui_scr_def_t;
 
 extern const ui_scr_def_t *const ui_scr[SCR_COUNT];
+
+// The keypad text editor with a title and a callback once the text is kept (ui_text_open's public form)
+void ui_text_open_done(const char *prefix, char *target, uint8_t max, void (*done)(void));
 extern ui_state_t ui_st;
 extern ui_target_t ui_target;		// the target of SCR_ACTIONS / SCR_COMPOSE
 

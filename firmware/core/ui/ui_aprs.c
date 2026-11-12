@@ -458,3 +458,269 @@ const ui_scr_def_t ui_aprs_heard_screen = {
 	.empty = TRN("Nothing heard yet"),
 	.count = heard_count, .item = heard_item,
 };
+
+// --- KISS TNC (TRX): the serial cable as a KISS TNC ---------------------------------
+// While this screen is up the host port is a KISS TNC: the APRS receive path and the host port's KISS are on, the
+// radio sits on the APRS frequency, and the hostlink routes KISS frames to/from the APRS engine (aprs_host.c). Back
+// restores the APRS settings, so the host port returns to the debug/CPS protocols (the hostlink's TNC idle timeout
+// still applies if a host was mid-frame).
+enum { KT_STATUS, KT_FREQ, KT_CALL, KT_HEARD, KT_IN, KT_OUT, KT_SERIAL, KT_COUNT };
+
+static bool kt_saved;
+static aprs_cfg_t kt_backup;
+static uint32_t kt_last_ms;
+static int8_t kt_edit = -1;		// KT_FREQ while the frequency is typed
+static char kt_digits[UI_ENTRY_MAX + 1];
+static uint8_t kt_dlen;
+static char kt_call[AX25_CALL_LEN + 4];	// the callsign being typed
+
+static const char *kt_why(uint8_t block)
+{
+	switch (block) {
+	case APRS_OK: return NULL;
+	case APRS_NO_CALL: return TR("Set the callsign (radio name)");
+	case APRS_NO_FREQ: return TR("No APRS frequency");
+	case APRS_NOT_AMATEUR: return TR("Not an amateur frequency");
+	case APRS_NO_AFSK: return TR("No AFSK on this radio");
+	default: return TR("Not ready");
+	}
+}
+
+static uint16_t kt_count(void) { return KT_COUNT; }
+
+static void kt_item(uint16_t i, ui_item_t *it)
+{
+	aprs_view_t v;
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool have = ui_svc_aprs_view(&v);
+	switch (i) {
+	case KT_STATUS: {
+		str_copy(it->label, sizeof it->label, TR("Status"));
+		const char *why = have ? kt_why(v.block) : TR("APRS not in this build");
+		if (why != NULL) {
+			sb_str(&b, why);
+			it->flags |= UI_ITEM_TEMP;
+		} else {
+			sb_str(&b, "KISS TNC");
+		}
+		break;
+	}
+	case KT_FREQ:
+		str_copy(it->label, sizeof it->label, TR("Frequency"));
+		if (kt_edit == KT_FREQ) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, kt_dlen != 0 ? kt_digits : TR("type digits"));
+		} else if (have && v.freq_hz != 0) {
+			sb_freq(&b, v.freq_hz);
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	case KT_CALL:
+		str_copy(it->label, sizeof it->label, TR("Callsign"));
+		sb_str(&b, have && v.call[0] != '\0' ? v.call : TR("Not set"));
+		break;
+	case KT_HEARD:
+		str_copy(it->label, sizeof it->label, TR("Heard"));
+		if (have) {
+			sb_u32(&b, v.rx_frames, 1);
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	case KT_IN:
+		str_copy(it->label, sizeof it->label, TR("KISS in"));
+		if (have) {
+			sb_u32(&b, v.host_in, 1);
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	case KT_OUT:
+		str_copy(it->label, sizeof it->label, TR("KISS out"));
+		if (have) {
+			sb_u32(&b, v.host_out, 1);
+		} else {
+			sb_str(&b, "-");
+		}
+		break;
+	case KT_SERIAL:
+		str_copy(it->label, sizeof it->label, TR("Serial"));
+		sb_str(&b, "KISS 115200 8N1");
+		break;
+	default:
+		break;
+	}
+}
+
+static void kt_freq_begin(void)
+{
+	aprs_view_t v;
+	uint32_t hz = ui_svc_aprs_view(&v) ? v.freq_hz : 0;
+	uint32_t x = hz / 10u;
+	kt_dlen = UI_ENTRY_MAX;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		kt_digits[i] = (char)('0' + x % 10u);
+		x /= 10u;
+	}
+	kt_digits[UI_ENTRY_MAX] = '\0';
+	kt_edit = KT_FREQ;
+	ui_dirty();
+}
+
+static void kt_freq_commit(void)
+{
+	uint32_t hz = ui_freq_entry_hz(kt_digits, kt_dlen);
+	if (hz != 0) {
+		aprs_cfg_t c;
+		ui_svc_aprs_cfg(&c);
+		c.region = APRS_REGION_CUSTOM;
+		c.freq_hz = hz;
+		ui_svc_aprs_set_cfg(&c);
+		radio_req_vfo_set(hz);
+		radio_req_mode(RADIO_MODE_FM);
+		ui_toast(TR("Frequency set"));
+	}
+	kt_edit = -1;
+	ui_dirty();
+}
+
+// The callsign field keeps an optional -SSID: the base call goes to the identity, the SSID to the APRS config
+static void kt_text_kept(void)
+{
+	char call[AX25_CALL_LEN + 4];
+	str_copy(call, sizeof call, kt_call);
+	char *p = call;
+	while (*p == ' ') {
+		p++;
+	}
+	char *dash = strchr(p, '-');
+	uint8_t ssid = 0;
+	if (dash != NULL) {
+		*dash = '\0';
+		uint16_t n = 0;
+		for (const char *q = dash + 1; *q >= '0' && *q <= '9'; q++) {
+			n = (uint16_t)(n * 10u + (uint16_t)(*q - '0'));
+		}
+		if (n <= 15) {
+			ssid = (uint8_t)n;
+		}
+	}
+	for (char *q = p; *q != '\0'; q++) {
+		if (*q >= 'a' && *q <= 'z') {
+			*q = (char)(*q - 'a' + 'A');
+		}
+	}
+	if (!aprs_callsign_ok(p)) {
+		ui_toast(TR("Not a valid callsign"));
+		return;
+	}
+	aprs_cfg_t c;
+	ui_svc_aprs_cfg(&c);
+	c.ssid = ssid;
+	ui_svc_aprs_set_cfg(&c);
+	aprs_set_test_call(p);
+	(void)ui_svc_name_set(UI_NAME_RADIO, p);
+	ui_toast(TR("Callsign set"));
+	ui_dirty();
+}
+
+static void kt_call_begin(void)
+{
+	aprs_view_t v;
+	str_copy(kt_call, sizeof kt_call, ui_svc_aprs_view(&v) ? v.call : "");
+	ui_text_open_done(TR("Callsign"), kt_call, sizeof kt_call, kt_text_kept);
+}
+
+static void kt_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	if (kt_edit >= 0) {
+		return;
+	}
+	if (i == KT_FREQ) {
+		kt_freq_begin();
+	} else if (i == KT_CALL) {
+		kt_call_begin();
+	}
+}
+
+static bool kt_key(const input_event_t *ev)
+{
+	if (kt_edit < 0) {
+		return false;
+	}
+	bool press = ev->gesture == GESTURE_PRESS || ev->gesture == GESTURE_LONG;
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && press) {
+		if (kt_dlen >= UI_ENTRY_MAX) {
+			kt_dlen = 0;	// the first digit replaces the value shown
+		}
+		(void)ui_freq_entry_digit(kt_digits, &kt_dlen, (char)('0' + d));
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (kt_dlen != 0) {
+			kt_digits[--kt_dlen] = '\0';
+		} else {
+			kt_edit = -1;
+		}
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		kt_edit = -1;
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		kt_freq_commit();
+		return true;
+	}
+	return false;
+}
+
+static void kt_enter(void)
+{
+	aprs_view_t v;
+	kt_edit = -1;
+	ui_svc_aprs_cfg(&kt_backup);
+	kt_saved = true;
+	aprs_cfg_t c = kt_backup;
+	c.kiss = true;
+	c.rx_on = true;
+	ui_svc_aprs_set_cfg(&c);
+	if (ui_svc_aprs_view(&v) && v.freq_hz != 0) {
+		radio_req_vfo(true);
+		radio_req_vfo_set(v.freq_hz);
+		radio_req_mode(RADIO_MODE_FM);
+	}
+	kt_last_ms = ui_st.now_ms;
+	ui_dirty();
+}
+
+static void kt_leave(void)
+{
+	if (kt_saved) {
+		ui_svc_aprs_set_cfg(&kt_backup);
+		kt_saved = false;
+	}
+	ui_dirty();
+}
+
+static bool kt_tick(uint32_t now)
+{
+	if (now - kt_last_ms < 1000u) {
+		return false;
+	}
+	kt_last_ms = now;
+	return true;
+}
+
+const ui_scr_def_t kiss_tnc_screen = {
+	.name = "kiss", .flags = SF_LIST | SF_FIELD, .prefix = TRN("KISS TNC"), .hint = TRN("OK change  Back"),
+	.count = kt_count, .item = kt_item, .select = kt_select, .key = kt_key,
+	.enter = kt_enter, .leave = kt_leave, .tick = kt_tick,
+};

@@ -68,7 +68,7 @@
 #endif
 
 extern const ui_scr_def_t ui_find_screen;
-extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_pos_screen;	// ui_aprs.c
+extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_pos_screen, kiss_tnc_screen;	// ui_aprs.c
 extern const ui_scr_def_t ui_gps_screen;	// ui_gps.c
 #if CONFIG_DUAL_WATCH
 extern const ui_scr_def_t ui_dual_screen, ui_dual_pick_screen, ui_dual_zone_screen;	// ui_dual.c
@@ -2605,6 +2605,13 @@ static void ui_text_open_title(char *target, uint8_t max, const char *prefix)
 static void ui_text_open(char *target, uint8_t max)
 {
 	ui_text_open_title(target, max, "Name");
+}
+
+// The same editor for other screens' fields: a title and a callback once kept
+void ui_text_open_done(const char *prefix, char *target, uint8_t max, void (*done)(void))
+{
+	ui_text_open_title(target, max, prefix);
+	text_done = done;
 }
 
 static void text_enter(void)
@@ -6053,6 +6060,9 @@ static const menu_tx_tile_t menu_trx_tiles[] = {
 	{ "FM", icon_trx, SCR_FM_TRX },
 #if CONFIG_BBS
 	{ "BBS", icon_burst, SCR_HUB },
+#endif
+#if CONFIG_APRS && CONFIG_HOSTLINK
+	{ "KISS TNC", icon_aprs, SCR_KISS_TNC },
 #endif
 };
 #define MENU_TRX_TILES	(sizeof(menu_trx_tiles) / sizeof(menu_trx_tiles[0]))
@@ -9954,7 +9964,7 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_TOOLS] = &tools_screen, [SCR_SETTINGS] = &settings_screen, [SCR_GROUP] = &group_screen,
 	[SCR_PICKER] = &picker_screen, [SCR_INFO] = &info_screen, [SCR_CONFIRM] = &confirm_screen,
 	[SCR_DIAG] = &diag_screen, [SCR_EMERGENCY] = &emergency_screen, [SCR_SCAN] = &scan_screen,
-	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen, [SCR_KISS_TNC] = &kiss_tnc_screen,
 	[SCR_APRS_POS] = &ui_aprs_pos_screen, [SCR_ABOUT] = &about_screen,
 	[SCR_VOLUME] = &volume_screen, [SCR_LANGUAGE] = &lang_screen,
 	[SCR_DMR_ID] = &dmr_id_screen,

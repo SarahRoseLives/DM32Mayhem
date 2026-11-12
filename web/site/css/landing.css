@@ -36,7 +36,7 @@ p { margin: 0 0 var(--space-3); }
 .hero { background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%); border-bottom: 1px solid var(--border); }
 .hero-grid { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: var(--space-6); align-items: center; padding-top: var(--space-7); padding-bottom: var(--space-7); }
 .hero-text h1 { margin-bottom: var(--space-3); }
-.hero-device img { max-height: 430px; display: block; margin: 0 auto; filter: drop-shadow(0 20px 34px rgb(0 0 0 / 28%)); }
+.hero-device img { max-height: 500px; display: block; margin: 0 auto; filter: drop-shadow(0 20px 34px rgb(0 0 0 / 28%)); }
 .actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-4) 0; }
 .btn {
 	display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);

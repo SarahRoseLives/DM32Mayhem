@@ -214,8 +214,10 @@ void ui_push(uint8_t scr, uint16_t arg)
 {
 	if (sp + 1 >= UI_STACK_MAX)
 		sp = UI_STACK_MAX - 2;	// never deeper than the stack: the oldest levels stay, the newest is replaced
+	uint8_t old_scr = stack[sp].scr;
 	if (ui_scr[stack[sp].scr]->leave != NULL)
 		ui_scr[stack[sp].scr]->leave();
+	ui_apps_leave(old_scr);
 	sp++;
 	stack[sp].scr = scr;
 	stack[sp].arg = arg;
@@ -225,6 +227,7 @@ void ui_push(uint8_t scr, uint16_t arg)
 	if (ui_scr[scr]->flags & SF_FILTER) {
 		ui_filter_reset();
 	}
+	ui_apps_enter(scr);
 	if (ui_scr[scr]->enter != NULL)
 		ui_scr[scr]->enter();	// may focus a row (the current zone in Channels)
 	// Else the first row that can be focused
@@ -263,6 +266,7 @@ void ui_pop(void)
 	cp_question_gone(sp);
 	if (ui_scr[stack[sp].scr]->leave != NULL)
 		ui_scr[stack[sp].scr]->leave();
+	ui_apps_leave(stack[sp].scr);
 	if (sp > 0)
 		sp--;
 	if (ui_scr[stack[sp].scr]->flags & SF_FILTER)
@@ -288,6 +292,7 @@ void ui_go_home(void)
 	for (uint8_t i = sp; i > 0; i--) {
 		if (ui_scr[stack[i].scr]->leave != NULL)
 			ui_scr[stack[i].scr]->leave();
+		ui_apps_leave(stack[i].scr);
 	}
 	sp = 0;
 	ui_st.quick_edit = false;

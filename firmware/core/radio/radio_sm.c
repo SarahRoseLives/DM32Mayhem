@@ -4845,8 +4845,7 @@ static const hal_audio_t *pcm_audio(void)
 
 void radio_sm_init(radio_sm_t *sm, uint32_t now_ms)
 {
-	settings_t st;
-	settings_read(&st);	// a zone add or delete a power cut interrupted is settled first (radio_core_start)
+	settings_read(&st_copy);	// a zone add or delete a power cut interrupted is settled first (radio_core_start)
 
 	memset(sm, 0, sizeof(*sm));
 	sm->audio_out = -1;
@@ -4867,12 +4866,12 @@ void radio_sm_init(radio_sm_t *sm, uint32_t now_ms)
 	sm->view.volume_step = RADIO_VOLUME_DEFAULT;
 	sm->base_squelch = RADIO_SQUELCH_DEFAULT;
 	sm->view.squelch = RADIO_SQUELCH_DEFAULT;
-	settings_to_radio(&st, &sm->set);	// as saved (docs/spec/settings-store.md 3)
+	settings_to_radio(&st_copy, &sm->set);	// as saved (docs/spec/settings-store.md 3)
 #if CONFIG_DMR_ROAMING
 	roam_cfg_t rc;
 	roam_cfg_of(&sm->set, &rc);
 	roam_init(&sm->roam, &rc);
-	memcpy(sm->roam_zones, st.roam_zones, sizeof(sm->roam_zones));
+	memcpy(sm->roam_zones, st_copy.roam_zones, sizeof(sm->roam_zones));
 	sm->roam_dirty = true;
 #endif
 	sm->view.tot_s = sm->set.tot_s;
@@ -4890,16 +4889,16 @@ void radio_sm_init(radio_sm_t *sm, uint32_t now_ms)
 
 #if CONFIG_DUAL_WATCH
 	vfo_defaults(&sm->vfo_ch);	// the second VFO first, then moved to vfo_other
-	restore_vfo(sm, &st, 1);
+	restore_vfo(sm, &st_copy, 1);
 	sm->vfo_other = (radio_vfo_t){ sm->vfo_ch, sm->vfo_seeded, sm->vfo_talk_id, sm->vfo_talk_private };
 	sm->vfo_seeded = false;
 	sm->vfo_talk_id = 0;
 	sm->vfo_talk_private = false;
 #endif
 	vfo_defaults(&sm->vfo_ch);
-	restore_vfo(sm, &st, 0);
+	restore_vfo(sm, &st_copy, 0);
 #if CONFIG_DUAL_WATCH
-	vfo_use(sm, st.vfo_index);
+	vfo_use(sm, st_copy.vfo_index);
 #endif
 
 	sm->board_mode = RADIO_MODE_FM;
@@ -4921,12 +4920,12 @@ void radio_sm_init(radio_sm_t *sm, uint32_t now_ms)
 #endif
 
 	// The saved zone and channel; else zone 0 and its first channel; if zone 0 has none, the first zone that has one
-	select_position(sm, st.zone_index, st.channel, st.zone_pos);
-	apply_prefs(sm, &st);
+	select_position(sm, st_copy.zone_index, st_copy.channel, st_copy.zone_pos);
+	apply_prefs(sm, &st_copy);
 #if CONFIG_DMR
 	sm->hs_power = default_power();
 #endif
-	if (!sm->have_channels || (st.vfo && VFO_AVAILABLE)) {
+	if (!sm->have_channels || (st_copy.vfo && VFO_AVAILABLE)) {
 		if (VFO_AVAILABLE) {
 			enter_vfo(sm, now_ms);
 		} else {

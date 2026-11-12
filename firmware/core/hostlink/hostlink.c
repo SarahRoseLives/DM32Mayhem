@@ -50,9 +50,9 @@
 // words: MMDVM frames on the stack; debug link replies format diagnostics lines. The deepest chain (the web view's
 // debug link section > the DMR data view, with the air queue inlined into the task) reads 2568 bytes with the macOS
 // toolchain; the CI's reads up to 16 deeper, and stack-check.md's overhead and margin come on top, 4 to spare
-#define HOSTLINK_TASK_STACK	731
+#define HOSTLINK_TASK_STACK	859
 #else
-#define HOSTLINK_TASK_STACK	512	// words: MMDVM frames are built on the stack
+#define HOSTLINK_TASK_STACK	640	// words: MMDVM frames are built on the stack
 #endif
 #define POLL_MS			5	// hotspot housekeeping while nothing arrives
 #define READ_CHUNK		64

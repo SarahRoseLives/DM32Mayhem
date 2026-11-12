@@ -35,6 +35,52 @@ typedef struct {
 	uint8_t reserved[3];
 } settings_zs_import_t;
 
+// The UI apps' own settings (core/ui/ui_menus.c): each app's editable values, saved when the app closes and read
+// back when it opens. Append-only like the rest; the set bits say which apps have saved values
+#define SETTINGS_APP_CHANNELS		16	// ACARS channels (ACARS_CH_N)
+#define SETTINGS_APP_RTTY_MSG		101	// RTTY TX message (rtty_msg)
+#define SETTINGS_APP_POCSAG_TEXT	81	// POCSAG TX text (POCSAG_MAX_TEXT + 1)
+#define SETTINGS_APP_SAME_STATION	9	// SAME station ID
+#define SETTINGS_APP_OOK_HEX		17	// OOK hex data
+#define SETTINGS_APP_P25_HEX		6	// NAC / WACN / System ID text
+enum {
+	SETTINGS_APP_RTTY_RX, SETTINGS_APP_RTTY_TX, SETTINGS_APP_ACARS, SETTINGS_APP_POCSAG_RX, SETTINGS_APP_POCSAG_TX,
+	SETTINGS_APP_SAME, SETTINGS_APP_OOK, SETTINGS_APP_MDC, SETTINGS_APP_P25, SETTINGS_APP_FM_TRX,
+	SETTINGS_APP_TV,
+};
+typedef struct {
+	uint16_t set;			// 1 << SETTINGS_APP_* for each app whose fields below are set
+	uint32_t rtty_rx_hz;
+	uint8_t rtty_rx_baud, rtty_rx_mark, rtty_rx_shift, rtty_rx_flags;	// bit 0 invert, bit 1 squelch
+	uint32_t rtty_tx_hz;
+	uint8_t rtty_tx_baud, rtty_tx_mark, rtty_tx_shift, rtty_tx_repeat;
+	char rtty_tx_msg[SETTINGS_APP_RTTY_MSG];
+	uint32_t acars_hz;
+	uint8_t acars_dwell, acars_af;
+	uint32_t acars_ch_hz[SETTINGS_APP_CHANNELS];
+	uint8_t acars_ch_on[SETTINGS_APP_CHANNELS];
+	uint32_t pocsag_rx_hz;
+	uint8_t pocsag_rx_baud;
+	uint32_t pocsag_tx_hz, pocsag_cap;
+	uint8_t pocsag_tx_baud, pocsag_func, pocsag_alpha, pocsag_repeat, pocsag_invert, pocsag_level;
+	char pocsag_text[SETTINGS_APP_POCSAG_TEXT];
+	uint32_t same_hz;
+	uint8_t same_org, same_event, same_fips_state, same_dur_h, same_dur_m, same_narrow, same_level;
+	uint16_t same_fips_county;
+	char same_station[SETTINGS_APP_SAME_STATION];
+	uint32_t ook_hz, ook_bit_us;
+	uint8_t ook_order, ook_repeat, ook_db;
+	char ook_hex[SETTINGS_APP_OOK_HEX];
+	uint32_t mdc_hz;
+	uint8_t mdc_op, mdc_arg, mdc_id_hi, mdc_id_lo, mdc_src_hi, mdc_src_lo;
+	uint32_t p25_hz, p25_rfss, p25_site, p25_tg, p25_vch;
+	char p25_nac[SETTINGS_APP_P25_HEX], p25_wacn[SETTINGS_APP_P25_HEX], p25_sys[SETTINGS_APP_P25_HEX];
+	uint32_t fm_trx_hz;
+	uint32_t tv_hz;			// the TV test pattern (the OOK) frequency
+	uint8_t tv_pattern, tv_repeat;
+	uint32_t tv_bit_us;		// the OOK bit period
+} settings_apps_t;
+
 typedef struct {
 	// Where the radio is
 	uint8_t vfo;			// 1 = tuning the VFO, 0 = on a channel
@@ -238,6 +284,7 @@ typedef struct {
 	char bbs_sysop[7];
 	uint8_t bbs_cwid;		// CW ID interval code: 0 off, 1 5 min, .. 4 30 min (appended after the strings)
 #endif
+	settings_apps_t apps;		// the UI apps' settings (ui_menus.c)
 } settings_t;
 
 // Pages: settings_t is stored as records of SETTINGS_PAGE_BYTES each (settings-store.md 2.1). Only the pages its size

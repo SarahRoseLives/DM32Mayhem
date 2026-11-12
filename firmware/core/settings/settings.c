@@ -29,9 +29,9 @@ _Static_assert(sizeof(settings_t) % 4 == 0, "settings_t has tail padding");
 _Static_assert(offsetof(settings_t, dual_b) == SETTINGS_PAGE_BYTES, "page 1 starts at its first field");
 _Static_assert(offsetof(settings_t, ref_trim_ppb) % 2 == 0, "ref_trim_ppb is aligned");
 #if CONFIG_BBS
-_Static_assert(sizeof(settings_t) == 432, "settings_t changed size: update docs/spec/settings-store.md 3 and this");
+_Static_assert(sizeof(settings_t) == 868, "settings_t changed size: update docs/spec/settings-store.md 3 and this");
 #else
-_Static_assert(sizeof(settings_t) == 392, "settings_t changed size: update docs/spec/settings-store.md 3 and this");
+_Static_assert(sizeof(settings_t) == 828, "settings_t changed size: update docs/spec/settings-store.md 3 and this");
 #endif
 
 static settings_t live;			// under the quick lock

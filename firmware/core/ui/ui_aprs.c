@@ -704,7 +704,11 @@ static void kt_enter(void)
 static void kt_leave(void)
 {
 	if (kt_saved) {
-		ui_svc_aprs_set_cfg(&kt_backup);
+		aprs_cfg_t c;
+		ui_svc_aprs_cfg(&c);
+		c.kiss = kt_backup.kiss;
+		c.rx_on = kt_backup.rx_on;
+		ui_svc_aprs_set_cfg(&c);	// keep the frequency, SSID and callsign the user changed here
 		kt_saved = false;
 	}
 	ui_dirty();

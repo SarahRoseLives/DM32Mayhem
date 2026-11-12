@@ -38,6 +38,7 @@ typedef enum {
 	SCR_BBS_MSGS, SCR_BBS_MSG,	// the BBS mailbox: the list and one message (CONFIG_BBS, docs/spec/bbs.md)
 	SCR_SAME_TX,			// the SAME header transmitter (CONFIG_SAME_TX, core/same)
 	SCR_OOK_TX,			// the OOK / de Bruijn transmitter (CONFIG_OOK_TX, core/ook)
+	SCR_TV_TX,			// the coarse TV test pattern on the OOK (CONFIG_OOK_TX)
 	SCR_MDC_TX,			// the MDC-1200 signaling transmitter (CONFIG_MDC_TX, core/mdc)
 	SCR_P25CC_TX,			// the P25 control channel transmitter (CONFIG_P25CC_TX, core/p25cc)
 	SCR_APRS_TX,			// the APRS status/message transmitter (CONFIG_APRS_TX)
@@ -101,6 +102,10 @@ typedef struct {
 } ui_scr_def_t;
 
 extern const ui_scr_def_t *const ui_scr[SCR_COUNT];
+
+// The apps' settings across boots (ui_menus.c): read when the app opens, written when it closes
+void ui_apps_enter(uint8_t scr);
+void ui_apps_leave(uint8_t scr);
 
 // The keypad text editor with a title and a callback once the text is kept (ui_text_open's public form)
 void ui_text_open_done(const char *prefix, char *target, uint8_t max, void (*done)(void));

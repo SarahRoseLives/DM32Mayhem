@@ -12,6 +12,7 @@
 #include "fmt.h"
 #include "codeplug/codeplug.h"
 #include "config.h"
+#include "settings/settings.h"
 #include "hal_time.h"
 #include "radio/tones.h"
 #include "radio/mic_gain.h"
@@ -5999,6 +6000,19 @@ static void icon_acars(int ox, int oy, int s, color_t c)
 	iline(ox, oy, s, 11, 13, 5, 6, c);
 }
 #endif
+#if CONFIG_OOK_TX
+static void icon_tv(int ox, int oy, int s, color_t c)
+{
+	// a television: the screen and its stand
+	iline(ox, oy, s, 2, 3, 13, 3, c);
+	iline(ox, oy, s, 2, 3, 2, 11, c);
+	iline(ox, oy, s, 13, 3, 13, 11, c);
+	iline(ox, oy, s, 2, 11, 13, 11, c);
+	iline(ox, oy, s, 6, 13, 9, 13, c);
+	ipx(ox, oy, s, 7, 12, c);
+	ipx(ox, oy, s, 8, 12, c);
+}
+#endif
 #if CONFIG_GPS_SKY
 static void icon_gps(int ox, int oy, int s, color_t c)
 {
@@ -6024,6 +6038,7 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #endif
 #if CONFIG_OOK_TX
 	{ "OOK", icon_wave, SCR_OOK_TX },
+	{ "TV", icon_tv, SCR_TV_TX },
 #endif
 #if CONFIG_MDC_TX
 	{ "MDC", icon_burst, SCR_MDC_TX },
@@ -7323,6 +7338,274 @@ static const ui_scr_def_t ook_screen = {
 	.name = "ook-tx", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("OOK TX"),
 	.hint = TRN("OK change  Back"),
 	.count = ook_count, .item = ook_item, .select = ook_select, .key = ook_key, .enter = ook_enter,
+};
+#endif	// CONFIG_OOK_TX
+
+#if CONFIG_OOK_TX
+// ======================= TV test pattern (the OOK) =======================
+// The analog TV is gone black from the carrier; the PA is the only AM path on this radio, so this app keys the
+// carrier on/off (the "black/sync" on, the "white" off) with slow test patterns. It is not NTSC (no 6 MHz, no 4.7 us
+// sync); on a TV the raster may show black/white bands, stripes or a split, and roll. The bit period 63 us is the
+// line rate; the PA bias wants longer pulses, so the user can try 50..1000 us. The field is 262 lines + the vertical
+// sync. The frequency defaults to cable channel 58 (427.250 MHz).
+#define TV_LINES	262
+enum { TV_ROW_FREQ, TV_ROW_PATTERN, TV_ROW_BIT, TV_ROW_TX, TV_ROW_STATUS, TV_ROW_COUNT };
+static const char *const tv_pat_names[] = { "Bars", "Stripes", "Checker", "Split", "Field" };
+#define TV_PAT_COUNT	(sizeof tv_pat_names / sizeof tv_pat_names[0])
+
+static uint32_t tv_hz = 427250000u;
+static uint32_t tv_bit_us = 63u;
+static uint8_t tv_pattern;
+static bool tv_sending;
+static int8_t tv_edit = -1;
+static char tv_digits[UI_ENTRY_MAX + 1];
+static uint8_t tv_len;
+static uint8_t tv_bits[APRS_AFSK_BURST_BYTES];
+static uint16_t tv_nbits;
+
+static void tv_build(void)
+{
+	memset(tv_bits, 0, sizeof tv_bits);
+	for (int line = 0; line < TV_LINES; line++) {
+		bool on;
+		switch (tv_pattern) {
+		case 0: on = ((line / 32) & 1) == 0; break;	// eight 32-line bands
+		case 1: on = (line & 1) == 0; break;		// one-line stripes
+		case 2: on = ((line / 8) & 1) == 0; break;	// eight-line bands
+		case 3: on = line < TV_LINES / 2; break;		// top/bottom split
+		default: on = true; break;			// carrier on (black + sync)
+		}
+		if (line >= TV_LINES - 3) {
+			on = true;					// the vertical sync
+		}
+		if (on) {
+			tv_bits[line >> 3] |= (uint8_t)(0x80u >> (line & 7));
+		}
+	}
+	tv_nbits = TV_LINES;
+}
+
+// One field's burst; the tick queues the next while sending. 255 fields is the OOK's longest burst,
+// re-queued by the tick, so it keeps painting until Stop.
+static bool tv_kick(void)
+{
+	return aprs_queue_ook_burst(tv_hz, tv_bits, tv_nbits, tv_bit_us, 255, 0);
+}
+
+static void tv_start(void)
+{
+	if (tv_sending) {
+		return;
+	}
+	tv_build();
+	tv_sending = true;
+	(void)tv_kick();
+	ui_toast(TR("Sending until Stop"));
+	ui_dirty();
+}
+
+static void tv_stop(void)
+{
+	if (!tv_sending) {
+		return;
+	}
+	tv_sending = false;
+	if (board.ook != NULL && board.ook->stop != NULL) {
+		board.ook->stop();
+	}
+	ui_toast(TR("Stopped"));
+	ui_dirty();
+}
+
+static void tv_freq_begin(void)
+{
+	uint32_t v = tv_hz / 10u;
+	tv_len = UI_ENTRY_MAX;
+	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
+		tv_digits[i] = (char)('0' + v % 10u);
+		v /= 10u;
+	}
+	tv_digits[UI_ENTRY_MAX] = '\0';
+	tv_edit = TV_ROW_FREQ;
+}
+
+static void tv_bit_begin(void)
+{
+	char tmp[8];
+	int n = 0;
+	uint32_t v = tv_bit_us;
+	do {
+		tmp[n++] = (char)('0' + v % 10u);
+		v /= 10u;
+	} while (v != 0 && n < 5);
+	tv_len = (uint8_t)n;
+	for (int i = 0; i < n; i++) {
+		tv_digits[i] = tmp[n - 1 - i];
+	}
+	tv_digits[n] = '\0';
+	tv_edit = TV_ROW_BIT;
+}
+
+static void tv_commit(void)
+{
+	if (tv_edit == TV_ROW_FREQ) {
+		uint32_t hz = ui_freq_entry_hz(tv_digits, tv_len);
+		if (hz != 0) {
+			tv_hz = hz;
+		}
+	} else if (tv_edit == TV_ROW_BIT) {
+		uint32_t v = 0;
+		for (uint8_t i = 0; i < tv_len; i++) {
+			v = v * 10u + (uint32_t)(tv_digits[i] - '0');
+		}
+		tv_bit_us = v < 50u ? 50u : v > 1000u ? 1000u : v;
+	}
+	tv_edit = -1;
+	ui_dirty();
+}
+
+static uint16_t tv_count(void) { return TV_ROW_COUNT; }
+
+static void tv_item(uint16_t i, ui_item_t *it)
+{
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	bool edit = tv_edit == (int8_t)i;
+	switch (i) {
+	case TV_ROW_FREQ:
+		str_copy(it->label, sizeof it->label, TR("Frequency"));
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, tv_len != 0 ? tv_digits : TR("type digits"));
+		} else {
+			sb_freq(&b, tv_hz);
+		}
+		break;
+	case TV_ROW_PATTERN:
+		str_copy(it->label, sizeof it->label, TR("Pattern"));
+		sb_str(&b, tv_pat_names[tv_pattern < TV_PAT_COUNT ? tv_pattern : 0]);
+		break;
+	case TV_ROW_BIT:
+		str_copy(it->label, sizeof it->label, TR("Bit"));
+		if (edit) {
+			it->flags |= UI_ITEM_EDIT;
+			sb_str(&b, tv_len != 0 ? tv_digits : TR("type digits"));
+		} else {
+			sb_u32(&b, tv_bit_us, 1);
+			sb_str(&b, " us");
+		}
+		break;
+	case TV_ROW_TX:
+		str_copy(it->label, sizeof it->label, TR("Send pattern"));
+		sb_str(&b, tv_sending ? TR("Stop") : TR("Start"));
+		break;
+	case TV_ROW_STATUS:
+		str_copy(it->label, sizeof it->label, TR("Status"));
+		sb_str(&b, tv_sending ? TR("Sending") : TR("Ready"));
+		break;
+	default:
+		break;
+	}
+}
+
+static void tv_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	switch (i) {
+	case TV_ROW_FREQ:
+		tv_freq_begin();
+		break;
+	case TV_ROW_PATTERN:
+		tv_pattern = (uint8_t)((tv_pattern + 1u) % TV_PAT_COUNT);
+		break;
+	case TV_ROW_BIT:
+		tv_bit_begin();
+		break;
+	case TV_ROW_TX:
+		if (tv_sending) {
+			tv_stop();
+		} else {
+			tv_start();
+		}
+		break;
+	default:
+		break;
+	}
+	ui_dirty();
+}
+
+static bool tv_key(const input_event_t *ev)
+{
+	if (tv_edit < 0) {
+		return false;
+	}
+	bool press = ev->gesture == GESTURE_PRESS || ev->gesture == GESTURE_LONG;
+	int d = ev->action >= ACT_DIGIT_0 && ev->action <= ACT_DIGIT_9 ? ev->action - ACT_DIGIT_0 : -1;
+	if (d >= 0 && press) {
+		if (tv_edit == TV_ROW_FREQ) {
+			if (tv_len >= UI_ENTRY_MAX) {
+				tv_len = 0;
+			}
+			(void)ui_freq_entry_digit(tv_digits, &tv_len, (char)('0' + d));
+		} else {
+			if (tv_len >= 5) {
+				tv_len = 0;
+			}
+			tv_digits[tv_len++] = (char)('0' + d);
+			tv_digits[tv_len] = '\0';
+		}
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_BACK && press) {
+		if (tv_len != 0) {
+			tv_digits[--tv_len] = '\0';
+		} else {
+			tv_edit = -1;
+		}
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_CONTEXT && press) {
+		tv_edit = -1;
+		ui_dirty();
+		return true;
+	}
+	if (ev->action == ACT_SELECT && press) {
+		tv_commit();
+		return true;
+	}
+	return false;
+}
+
+static bool tv_tick(uint32_t now)
+{
+	(void)now;
+	if (!tv_sending) {
+		return false;
+	}
+	if (board.ook == NULL || board.ook->busy == NULL || !board.ook->busy()) {
+		(void)tv_kick();	// the previous burst ended: the next field
+	}
+	return true;			// the Status row stays current
+}
+
+static void tv_enter(void)
+{
+	tv_edit = -1;
+	tv_sending = false;
+}
+
+static void tv_leave(void)
+{
+	tv_stop();
+}
+
+static const ui_scr_def_t tv_screen = {
+	.name = "tv", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("TV"),
+	.hint = TRN("OK change  Back"),
+	.count = tv_count, .item = tv_item, .select = tv_select, .key = tv_key, .enter = tv_enter, .leave = tv_leave,
+	.tick = tv_tick,
 };
 #endif	// CONFIG_OOK_TX
 
@@ -9956,6 +10239,323 @@ static const ui_scr_def_t fm_trx_screen = {
 };
 #endif	// CONFIG_FM_TRX
 
+// ======================= The apps' settings across boots =======================
+// Every app's editable values sit in the settings store (settings.h settings_apps_t): read when the app opens and
+// written when it closes (ui_apps_enter/leave, called from ui_push/ui_pop/ui_go_home). APRS, the BBS and the KISS TNC
+// keep their own stores (aprs_cfg, the bbs_ fields, the radio name).
+static settings_t app_settings;
+
+static bool apps_is_app(uint8_t scr)
+{
+	switch (scr) {
+#if CONFIG_RTTY_RX
+	case SCR_RTTY_RX: return true;
+#endif
+#if CONFIG_RTTY_TX
+	case SCR_RTTY_TX: return true;
+#endif
+#if CONFIG_ACARS
+	case SCR_ACARS: return true;
+#endif
+#if CONFIG_POCSAG
+	case SCR_POCSAG: case SCR_POCSAG_TX: return true;
+#endif
+#if CONFIG_SAME_TX
+	case SCR_SAME_TX: return true;
+#endif
+#if CONFIG_OOK_TX
+	case SCR_OOK_TX: case SCR_TV_TX: return true;
+#endif
+#if CONFIG_MDC_TX
+	case SCR_MDC_TX: return true;
+#endif
+#if CONFIG_P25CC_TX
+	case SCR_P25CC_TX: return true;
+#endif
+#if CONFIG_FM_TRX
+	case SCR_FM_TRX: return true;
+#endif
+	default: return false;
+	}
+}
+
+static void apps_load(uint8_t scr)
+{
+	if (!apps_is_app(scr)) {
+		return;
+	}
+	settings_read(&app_settings);
+	const settings_apps_t *a = &app_settings.apps;
+	switch (scr) {
+#if CONFIG_RTTY_RX
+	case SCR_RTTY_RX:
+		if (a->set & (1u << SETTINGS_APP_RTTY_RX)) {
+			rtty_rx_hz = a->rtty_rx_hz;
+			rtty_rx_baud_idx = a->rtty_rx_baud < 2 ? a->rtty_rx_baud : 0;
+			rtty_rx_mark_idx = a->rtty_rx_mark < 4 ? a->rtty_rx_mark : 0;
+			rtty_rx_shift_idx = a->rtty_rx_shift < 3 ? a->rtty_rx_shift : 0;
+			rtty_rx_invert = (a->rtty_rx_flags & 1u) != 0;
+			rtty_rx_squelch = (a->rtty_rx_flags & 2u) != 0;
+		}
+		break;
+#endif
+#if CONFIG_RTTY_TX
+	case SCR_RTTY_TX:
+		if (a->set & (1u << SETTINGS_APP_RTTY_TX)) {
+			rtty_hz = a->rtty_tx_hz;
+			rtty_baud_idx = a->rtty_tx_baud < 2 ? a->rtty_tx_baud : 0;
+			rtty_mark_idx = a->rtty_tx_mark < 3 ? a->rtty_tx_mark : 0;
+			rtty_shift_idx = a->rtty_tx_shift < 3 ? a->rtty_tx_shift : 0;
+			rtty_repeat = a->rtty_tx_repeat;
+			str_copy(rtty_msg, sizeof rtty_msg, a->rtty_tx_msg);
+		}
+		break;
+#endif
+#if CONFIG_ACARS
+	case SCR_ACARS:
+		if (a->set & (1u << SETTINGS_APP_ACARS)) {
+			acars_hz = a->acars_hz;
+			acars_cur_hz = a->acars_hz;
+			acars_dwell_idx = a->acars_dwell < 4 ? a->acars_dwell : 1;
+			acars_af_idx = a->acars_af < (sizeof acars_af_words / sizeof acars_af_words[0]) ? a->acars_af : 0;
+			for (uint8_t i = 0; i < ACARS_CH_N && i < SETTINGS_APP_CHANNELS; i++) {
+				acars_ch[i].hz = a->acars_ch_hz[i];
+				acars_ch[i].on = a->acars_ch_on[i] != 0;
+			}
+		}
+		break;
+#endif
+#if CONFIG_POCSAG
+	case SCR_POCSAG:
+		if (a->set & (1u << SETTINGS_APP_POCSAG_RX)) {
+			pocsag_rx_hz = a->pocsag_rx_hz;
+			pocsag_rx_baud_idx = a->pocsag_rx_baud < 4 ? a->pocsag_rx_baud : 0;
+		}
+		break;
+	case SCR_POCSAG_TX:
+		if (a->set & (1u << SETTINGS_APP_POCSAG_TX)) {
+			pocsag_tx_hz = a->pocsag_tx_hz;
+			pocsag_cap = a->pocsag_cap;
+			pocsag_tx_baud_idx = a->pocsag_tx_baud < 3 ? a->pocsag_tx_baud : 0;
+			pocsag_func = a->pocsag_func & 3u;
+			pocsag_alpha = a->pocsag_alpha != 0;
+			pocsag_repeat = a->pocsag_repeat;
+			pocsag_invert = a->pocsag_invert != 0;
+			pocsag_level = a->pocsag_level > 100 ? 100 : a->pocsag_level;
+			str_copy(pocsag_text, sizeof pocsag_text, a->pocsag_text);
+		}
+		break;
+#endif
+#if CONFIG_SAME_TX
+	case SCR_SAME_TX:
+		if (a->set & (1u << SETTINGS_APP_SAME)) {
+			same_cfg.hz = a->same_hz;
+			same_cfg.org = a->same_org < SAME_ORG_COUNT ? a->same_org : 0;
+			same_cfg.event = a->same_event < SAME_EVENT_COUNT ? a->same_event : 0;
+			same_cfg.fips_state = a->same_fips_state;
+			same_cfg.fips_county = a->same_fips_county;
+			same_cfg.dur_h = a->same_dur_h;
+			same_cfg.dur_m = a->same_dur_m;
+			same_cfg.narrow = a->same_narrow != 0;
+			same_cfg.level = a->same_level > 100 ? 100 : a->same_level;
+			str_copy(same_cfg.station, sizeof same_cfg.station, a->same_station);
+			same_loaded = true;
+		}
+		break;
+#endif
+#if CONFIG_OOK_TX
+	case SCR_OOK_TX:
+		if (a->set & (1u << SETTINGS_APP_OOK)) {
+			ook_hz = a->ook_hz;
+			ook_bit_us = a->ook_bit_us;
+			ook_order = a->ook_order;
+			ook_repeat = a->ook_repeat;
+			ook_db_mode = a->ook_db != 0;
+			str_copy(ook_hexbuf, sizeof ook_hexbuf, a->ook_hex);
+			ook_loaded = true;
+		}
+		break;
+	case SCR_TV_TX:
+		if (a->set & (1u << SETTINGS_APP_TV)) {
+			tv_hz = a->tv_hz;
+			tv_pattern = a->tv_pattern < TV_PAT_COUNT ? a->tv_pattern : 0;
+			tv_bit_us = a->tv_bit_us < 50u ? 50u : a->tv_bit_us > 1000u ? 1000u : a->tv_bit_us;
+		}
+		break;
+#endif
+#if CONFIG_MDC_TX
+	case SCR_MDC_TX:
+		if (a->set & (1u << SETTINGS_APP_MDC)) {
+			mdc_hz = a->mdc_hz;
+			mdc_op_idx = a->mdc_op < (sizeof mdc_ops / sizeof mdc_ops[0]) ? a->mdc_op : 0;
+			mdc_arg = a->mdc_arg;
+			mdc_id_hi = a->mdc_id_hi;
+			mdc_id_lo = a->mdc_id_lo;
+			mdc_src_hi = a->mdc_src_hi;
+			mdc_src_lo = a->mdc_src_lo;
+			mdc_loaded = true;
+		}
+		break;
+#endif
+#if CONFIG_P25CC_TX
+	case SCR_P25CC_TX:
+		if (a->set & (1u << SETTINGS_APP_P25)) {
+			p25_hz = a->p25_hz;
+			p25_rfss = a->p25_rfss;
+			p25_site = a->p25_site;
+			p25_tg = a->p25_tg;
+			p25_vch = a->p25_vch;
+			str_copy(p25_hex_nac, sizeof p25_hex_nac, a->p25_nac);
+			str_copy(p25_hex_wacn, sizeof p25_hex_wacn, a->p25_wacn);
+			str_copy(p25_hex_sys, sizeof p25_hex_sys, a->p25_sys);
+			p25_loaded = true;
+		}
+		break;
+#endif
+#if CONFIG_FM_TRX
+	case SCR_FM_TRX:
+		if (a->set & (1u << SETTINGS_APP_FM_TRX)) {
+			fm_trx_hz = a->fm_trx_hz;
+		}
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
+static void apps_save(uint8_t scr)
+{
+	if (!apps_is_app(scr)) {
+		return;
+	}
+	settings_t *s = settings_begin();
+	settings_apps_t *a = &s->apps;
+	switch (scr) {
+#if CONFIG_RTTY_RX
+	case SCR_RTTY_RX:
+		a->rtty_rx_hz = rtty_rx_hz;
+		a->rtty_rx_baud = rtty_rx_baud_idx;
+		a->rtty_rx_mark = rtty_rx_mark_idx;
+		a->rtty_rx_shift = rtty_rx_shift_idx;
+		a->rtty_rx_flags = (uint8_t)((rtty_rx_invert ? 1u : 0u) | (rtty_rx_squelch ? 2u : 0u));
+		a->set |= (uint16_t)(1u << SETTINGS_APP_RTTY_RX);
+		break;
+#endif
+#if CONFIG_RTTY_TX
+	case SCR_RTTY_TX:
+		a->rtty_tx_hz = rtty_hz;
+		a->rtty_tx_baud = rtty_baud_idx;
+		a->rtty_tx_mark = rtty_mark_idx;
+		a->rtty_tx_shift = rtty_shift_idx;
+		a->rtty_tx_repeat = rtty_repeat;
+		str_copy(a->rtty_tx_msg, sizeof a->rtty_tx_msg, rtty_msg);
+		a->set |= (uint16_t)(1u << SETTINGS_APP_RTTY_TX);
+		break;
+#endif
+#if CONFIG_ACARS
+	case SCR_ACARS:
+		a->acars_hz = acars_hz;
+		a->acars_dwell = acars_dwell_idx;
+		a->acars_af = acars_af_idx;
+		for (uint8_t i = 0; i < ACARS_CH_N && i < SETTINGS_APP_CHANNELS; i++) {
+			a->acars_ch_hz[i] = acars_ch[i].hz;
+			a->acars_ch_on[i] = acars_ch[i].on ? 1u : 0u;
+		}
+		a->set |= (uint16_t)(1u << SETTINGS_APP_ACARS);
+		break;
+#endif
+#if CONFIG_POCSAG
+	case SCR_POCSAG:
+		a->pocsag_rx_hz = pocsag_rx_hz;
+		a->pocsag_rx_baud = pocsag_rx_baud_idx;
+		a->set |= (uint16_t)(1u << SETTINGS_APP_POCSAG_RX);
+		break;
+	case SCR_POCSAG_TX:
+		a->pocsag_tx_hz = pocsag_tx_hz;
+		a->pocsag_cap = pocsag_cap;
+		a->pocsag_tx_baud = pocsag_tx_baud_idx;
+		a->pocsag_func = pocsag_func;
+		a->pocsag_alpha = pocsag_alpha ? 1u : 0u;
+		a->pocsag_repeat = pocsag_repeat;
+		a->pocsag_invert = pocsag_invert ? 1u : 0u;
+		a->pocsag_level = pocsag_level;
+		str_copy(a->pocsag_text, sizeof a->pocsag_text, pocsag_text);
+		a->set |= (uint16_t)(1u << SETTINGS_APP_POCSAG_TX);
+		break;
+#endif
+#if CONFIG_SAME_TX
+	case SCR_SAME_TX:
+		a->same_hz = same_cfg.hz;
+		a->same_org = same_cfg.org;
+		a->same_event = same_cfg.event;
+		a->same_fips_state = same_cfg.fips_state;
+		a->same_fips_county = same_cfg.fips_county;
+		a->same_dur_h = same_cfg.dur_h;
+		a->same_dur_m = same_cfg.dur_m;
+		a->same_narrow = same_cfg.narrow ? 1u : 0u;
+		a->same_level = same_cfg.level;
+		str_copy(a->same_station, sizeof a->same_station, same_cfg.station);
+		a->set |= (uint16_t)(1u << SETTINGS_APP_SAME);
+		break;
+#endif
+#if CONFIG_OOK_TX
+	case SCR_OOK_TX:
+		a->ook_hz = ook_hz;
+		a->ook_bit_us = ook_bit_us;
+		a->ook_order = ook_order;
+		a->ook_repeat = ook_repeat;
+		a->ook_db = ook_db_mode ? 1u : 0u;
+		str_copy(a->ook_hex, sizeof a->ook_hex, ook_hexbuf);
+		a->set |= (uint16_t)(1u << SETTINGS_APP_OOK);
+		break;
+	case SCR_TV_TX:
+		a->tv_hz = tv_hz;
+		a->tv_pattern = tv_pattern;
+		a->tv_bit_us = tv_bit_us;
+		a->set |= (uint16_t)(1u << SETTINGS_APP_TV);
+		break;
+#endif
+#if CONFIG_MDC_TX
+	case SCR_MDC_TX:
+		a->mdc_hz = mdc_hz;
+		a->mdc_op = mdc_op_idx;
+		a->mdc_arg = mdc_arg;
+		a->mdc_id_hi = mdc_id_hi;
+		a->mdc_id_lo = mdc_id_lo;
+		a->mdc_src_hi = mdc_src_hi;
+		a->mdc_src_lo = mdc_src_lo;
+		a->set |= (uint16_t)(1u << SETTINGS_APP_MDC);
+		break;
+#endif
+#if CONFIG_P25CC_TX
+	case SCR_P25CC_TX:
+		a->p25_hz = p25_hz;
+		a->p25_rfss = p25_rfss;
+		a->p25_site = p25_site;
+		a->p25_tg = p25_tg;
+		a->p25_vch = p25_vch;
+		str_copy(a->p25_nac, sizeof a->p25_nac, p25_hex_nac);
+		str_copy(a->p25_wacn, sizeof a->p25_wacn, p25_hex_wacn);
+		str_copy(a->p25_sys, sizeof a->p25_sys, p25_hex_sys);
+		a->set |= (uint16_t)(1u << SETTINGS_APP_P25);
+		break;
+#endif
+#if CONFIG_FM_TRX
+	case SCR_FM_TRX:
+		a->fm_trx_hz = fm_trx_hz;
+		a->set |= (uint16_t)(1u << SETTINGS_APP_FM_TRX);
+		break;
+#endif
+	default:
+		return;		// not an app: no settings write
+	}
+	settings_end(ui_st.now_ms);
+}
+
+void ui_apps_enter(uint8_t scr) { apps_load(scr); }
+void ui_apps_leave(uint8_t scr) { apps_save(scr); }
+
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
@@ -9977,7 +10577,7 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_SAME_TX] = &same_screen,
 #endif
 #if CONFIG_OOK_TX
-	[SCR_OOK_TX] = &ook_screen,
+	[SCR_OOK_TX] = &ook_screen, [SCR_TV_TX] = &tv_screen,
 #endif
 #if CONFIG_MDC_TX
 	[SCR_MDC_TX] = &mdc_screen,

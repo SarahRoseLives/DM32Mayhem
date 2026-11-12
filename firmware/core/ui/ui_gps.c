@@ -11,6 +11,8 @@
 #include "ui_nav.h"
 #include "fmt.h"
 #include "i18n.h"
+#include "hostlink/hostlink.h"
+#include "debuglink/dlog.h"
 
 enum { PG_STATUS, PG_SKY, PG_SIGNAL, PG_GRID, PG_COUNT };
 static const char *const page_names[PG_COUNT] = { TRN("Status"), TRN("Sky"), TRN("Signal"), TRN("Grid") };
@@ -241,6 +243,8 @@ static void draw_status(const ui_position_t *p, int y)
 		sb_u32(&b, p->utc_hms % 100u, 2);
 		row(&y, "UTC", buf, ui_col.fg);
 	}
+	// The serial feed this screen is sending (raw NMEA on the USB serial while Position is open)
+	row(&y, TR("Serial"), TR("NMEA 115200 8N1"), ui_col.rx);
 }
 
 // The systems heard: "GPS 6/9" (used / seen) in their colors, one a line in cols columns of col_w from x, y
@@ -505,12 +509,102 @@ static bool gps_key(const input_event_t *ev)
 	return true;
 }
 
+// NMEA out over the serial while this screen is open (the debug link's log): $GPRMC and $GPGGA a second, with the
+// standard checksum. Built with sbuf_t (no libc printf: that overflows the UI task's small stack).
+static uint32_t nmea_ms;
+static char nmea_line[96];
+
+static void nmea_pos(sbuf_t *b, int32_t e7, char pos, char neg)
+{
+	int32_t a = e7 < 0 ? -e7 : e7;
+	uint32_t deg = (uint32_t)a / 10000000u;
+	uint32_t mm = (uint32_t)(a % 10000000) * 60u / 100000u;	// minutes x 10000
+	sb_u32(b, deg, 2);
+	sb_u32(b, mm / 10000u, 2);
+	sb_chr(b, '.');
+	sb_u32(b, mm % 10000u, 4);
+	sb_chr(b, ',');
+	sb_chr(b, e7 < 0 ? neg : pos);
+}
+
+static size_t nmea_with_sum(char *buf, size_t len, const char *body)
+{
+	sbuf_t b;
+	sb_init(&b, buf, len);
+	sb_chr(&b, '$');
+	sb_str(&b, body);
+	uint8_t sum = 0;
+	for (const char *p = body; *p != '\0'; p++) {
+		sum ^= (uint8_t)*p;
+	}
+	sb_chr(&b, '*');
+	static const char hex[] = "0123456789ABCDEF";
+	sb_chr(&b, hex[sum >> 4]);
+	sb_chr(&b, hex[sum & 0xF]);
+	return strlen(buf);
+}
+
+static bool gps_tick(uint32_t now)
+{
+	if (now - nmea_ms < 1000u) {
+		return false;
+	}
+	nmea_ms = now;
+	static ui_position_t p;		// static: the UI task's stack is small
+	if (!ui_svc_position(&p)) {
+		return false;
+	}
+	uint32_t t = p.utc_hms == 0xFFFFFFFFu ? 0 : p.utc_hms;
+	uint32_t hh = (t / 10000u) % 100u, mi = (t / 100u) % 100u, ss = t % 100u;
+	static char body[80];
+	sbuf_t b;
+	// $GPRMC: time, status, lat, N/S, lon, E/W, speed kn, course, date, mag
+	sb_init(&b, body, sizeof body);
+	sb_str(&b, "GPRMC,");
+	sb_u32(&b, hh, 2); sb_u32(&b, mi, 2); sb_u32(&b, ss, 2);
+	sb_str(&b, ".00,");
+	sb_chr(&b, p.fix ? 'A' : 'V');
+	sb_chr(&b, ',');
+	nmea_pos(&b, p.lat_e7, 'N', 'S');
+	sb_chr(&b, ',');
+	nmea_pos(&b, p.lon_e7, 'E', 'W');
+	sb_chr(&b, ',');
+	uint32_t kn10 = p.speed_kmh == 0xFFFF ? 0u : (uint32_t)((uint32_t)p.speed_kmh * 54u / 100u);
+	sb_u32(&b, kn10 / 10u, 1); sb_chr(&b, '.'); sb_u32(&b, kn10 % 10u, 1); sb_chr(&b, ',');
+	sb_u32(&b, p.course == 0xFFFF ? 0u : p.course, 1);
+	sb_str(&b, ".0,010100,,");
+	nmea_with_sum(nmea_line, sizeof nmea_line, body);
+	hostlink_write((const uint8_t *)nmea_line, strlen(nmea_line));
+	hostlink_write((const uint8_t *)"\r\n", 2);
+	// $GPGGA: time, lat, N/S, lon, E/W, fix quality, sats, hdop, altitude M, geoid M
+	sb_init(&b, body, sizeof body);
+	sb_str(&b, "GPGGA,");
+	sb_u32(&b, hh, 2); sb_u32(&b, mi, 2); sb_u32(&b, ss, 2);
+	sb_str(&b, ".00,");
+	nmea_pos(&b, p.lat_e7, 'N', 'S');
+	sb_chr(&b, ',');
+	nmea_pos(&b, p.lon_e7, 'E', 'W');
+	sb_chr(&b, ',');
+	sb_u32(&b, p.fix ? (p.mode == 3 ? 1u : 2u) : 0u, 1);
+	sb_chr(&b, ',');
+	sb_u32(&b, p.sats, 2);
+	sb_chr(&b, ',');
+	sb_u32(&b, p.hdop10 == 0xFFFF ? 0u : p.hdop10 / 10u, 1);
+	sb_chr(&b, '.');
+	sb_u32(&b, p.hdop10 == 0xFFFF ? 0u : p.hdop10 % 10u, 1);
+	sb_str(&b, ",0.0,M,0.0,M,,");
+	nmea_with_sum(nmea_line, sizeof nmea_line, body);
+	hostlink_write((const uint8_t *)nmea_line, strlen(nmea_line));
+	hostlink_write((const uint8_t *)"\r\n", 2);
+	return false;
+}
+
 static void gps_enter(void)
 {
 	page = PG_STATUS;
 }
 
 const ui_scr_def_t ui_gps_screen = {
-	.name = "gps", .flags = SF_FIELD, .key = gps_key, .draw = gps_draw, .enter = gps_enter,
+	.name = "gps", .flags = SF_FIELD, .key = gps_key, .draw = gps_draw, .enter = gps_enter, .tick = gps_tick,
 };
 #endif

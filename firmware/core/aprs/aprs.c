@@ -222,7 +222,7 @@ void aprs_cfg_default(aprs_cfg_t *c)
 	c->txdelay = APRS_TXDELAY_DEFAULT;
 	c->via = APRS_VIA_RF;
 	c->dmr_dst = APRS_DMR_DST_DEFAULT;
-	c->rx_on = c->messaging;
+	c->rx_on = false;	// off unless an APRS screen asks: the receive ring is shared with the RX apps
 }
 
 static void cfg_from_settings(const settings_t *s, aprs_cfg_t *c)
@@ -239,7 +239,7 @@ static void cfg_from_settings(const settings_t *s, aprs_cfg_t *c)
 	c->boot = (f & SETTINGS_APRS_BOOT) != 0;
 	c->kiss = (f & SETTINGS_APRS_KISS) != 0;
 	c->narrow = (f & SETTINGS_APRS_NARROW) != 0;
-	c->rx_on = (f & SETTINGS_APRS_RX) != 0;
+	c->rx_on = false;	// only an APRS screen turns it on (the shared receive ring)
 	c->igate = (f2 & SETTINGS_APRS2_IGATE) != 0;
 	c->igate_tx = (f2 & SETTINGS_APRS2_IGATE_TX) != 0;
 	c->messaging = (f2 & SETTINGS_APRS2_MESSAGING) != 0;

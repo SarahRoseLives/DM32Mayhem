@@ -71,6 +71,7 @@
 extern const ui_scr_def_t ui_find_screen;
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_pos_screen, kiss_tnc_screen;	// ui_aprs.c
 extern const ui_scr_def_t ui_gps_screen;	// ui_gps.c
+extern const ui_scr_def_t ui_sstv_screen;	// ui_sstv.c
 #if CONFIG_DUAL_WATCH
 extern const ui_scr_def_t ui_dual_screen, ui_dual_pick_screen, ui_dual_zone_screen;	// ui_dual.c
 #endif
@@ -6023,6 +6024,20 @@ static void icon_gps(int ox, int oy, int s, color_t c)
 	ipx(ox, oy, s, 8, 6, c);
 }
 #endif
+#if CONFIG_SSTV_RX
+static void icon_sstv(int ox, int oy, int s, color_t c)
+{
+	// a picture: frame, mountain and sun
+	iline(ox, oy, s, 2, 4, 14, 4, c);
+	iline(ox, oy, s, 14, 4, 14, 12, c);
+	iline(ox, oy, s, 14, 12, 2, 12, c);
+	iline(ox, oy, s, 2, 12, 2, 4, c);
+	iline(ox, oy, s, 3, 11, 7, 6, c);
+	iline(ox, oy, s, 7, 6, 11, 11, c);
+	iline(ox, oy, s, 9, 11, 12, 8, c);
+	ipx(ox, oy, s, 11, 6, c);
+}
+#endif
 
 typedef struct {
 	const char *label;
@@ -6056,7 +6071,7 @@ static const menu_tx_tile_t menu_tx_tiles[] = {
 #define MENU_TX_TILES	(sizeof(menu_tx_tiles) / sizeof(menu_tx_tiles[0]))
 #endif
 
-#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY || CONFIG_SSTV_RX
 static const menu_tx_tile_t menu_rx_tiles[] = {
 #if CONFIG_RTTY_RX
 	{ "RTTY", icon_rtty, SCR_RTTY_RX },
@@ -6083,8 +6098,8 @@ static const menu_tx_tile_t menu_trx_tiles[] = {
 #define MENU_TRX_TILES	(sizeof(menu_trx_tiles) / sizeof(menu_trx_tiles[0]))
 #endif
 
-// Experimental: apps that are in the tree but not ready for the main RX/TX grids (ACARS and POCSAG today)
-#if CONFIG_ACARS || CONFIG_POCSAG
+// Experimental: apps that are in the tree but not ready for the main RX/TX grids (ACARS, POCSAG, SSTV today)
+#if CONFIG_ACARS || CONFIG_POCSAG || CONFIG_SSTV_RX
 static const menu_tx_tile_t menu_exp_tiles[] = {
 #if CONFIG_ACARS
 	{ "ACARS", icon_acars, SCR_ACARS },
@@ -6092,6 +6107,9 @@ static const menu_tx_tile_t menu_exp_tiles[] = {
 #if CONFIG_POCSAG
 	{ "POCSAG RX", icon_pulse, SCR_POCSAG },
 	{ "POCSAG TX", icon_burst, SCR_POCSAG_TX },
+#endif
+#if CONFIG_SSTV_RX
+	{ "SSTV", icon_sstv, SCR_SSTV_RX },
 #endif
 };
 #define MENU_EXP_TILES	(sizeof(menu_exp_tiles) / sizeof(menu_exp_tiles[0]))
@@ -6107,7 +6125,7 @@ static uint16_t menu_count(uint16_t menu)
 	if (menu == MENU_TX)
 		return MENU_TX_TILES;
 #endif
-#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY || CONFIG_SSTV_RX
 	if (menu == MENU_RX)
 		return MENU_RX_TILES;
 #endif
@@ -6128,7 +6146,7 @@ static const char *menu_tile_label(uint16_t menu, uint16_t i)
 	if (menu == MENU_TX)
 		return i < MENU_TX_TILES ? menu_tx_tiles[i].label : "";
 #endif
-#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY || CONFIG_SSTV_RX
 	if (menu == MENU_RX)
 		return i < MENU_RX_TILES ? menu_rx_tiles[i].label : "";
 #endif
@@ -6163,7 +6181,7 @@ static void menu_icon(uint16_t menu, uint16_t i, int ox, int oy, int s, color_t 
 		return;
 	}
 #endif
-#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY || CONFIG_SSTV_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			menu_rx_tiles[i].icon(ox, oy, s, c);
@@ -6206,7 +6224,7 @@ static void menu_activate(uint16_t menu, uint16_t i)
 		return;
 	}
 #endif
-#if CONFIG_RTTY_RX || CONFIG_GPS_SKY
+#if CONFIG_RTTY_RX || CONFIG_GPS_SKY || CONFIG_SSTV_RX
 	if (menu == MENU_RX) {
 		if (i < MENU_RX_TILES)
 			ui_push(menu_rx_tiles[i].scr, 0);
@@ -10626,6 +10644,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #endif
 #if CONFIG_GPS_SKY
 	[SCR_GPS] = &ui_gps_screen,
+#endif
+#if CONFIG_SSTV_RX
+	[SCR_SSTV_RX] = &ui_sstv_screen,
 #endif
 #if CONFIG_CRASH_SCREEN
 	[SCR_CRASH] = &crash_screen,

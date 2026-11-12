@@ -45,6 +45,8 @@ typedef enum {
 	SCR_RTTY_TX,			// the RTTY transmitter (CONFIG_RTTY_TX, core/rtty)
 	SCR_RTTY_RX,			// the RTTY receiver (CONFIG_RTTY_RX, core/rtty)
 	SCR_RTTY_MSGS,			// the RTTY receiver's received text, full screen
+	SCR_SSTV_RX,
+	SCR_CTCSS_RX,			// the CTCSS tone identifier (CONFIG_CTCSS_RX, core/ctcss)			// the SSTV picture receiver (CONFIG_SSTV_RX, core/sstv)
 	SCR_ACARS,			// the ACARS receiver (CONFIG_ACARS, core/acars)
 	SCR_ACARS_MSGS,			// the ACARS messages, full screen
 	SCR_ACARS_CH,			// the ACARS scan channels and which are on

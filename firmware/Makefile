@@ -118,6 +118,9 @@ endif
 ifeq ($(CONFIG_POCSAG),y)
 CORE_DIRS += core/pocsag
 endif
+ifeq ($(CONFIG_SSTV_RX),y)
+CORE_DIRS += core/sstv
+endif
 ifeq ($(CONFIG_SNMP),y)
 CORE_DIRS += core/snmp
 endif

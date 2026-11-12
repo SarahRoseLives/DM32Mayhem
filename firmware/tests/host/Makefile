@@ -120,6 +120,11 @@ APRSLIB := $(CORE)/aprs/ax25.c $(CORE)/aprs/hdlc.c $(CORE)/aprs/afsk.c $(CORE)/a
 aprsTest: aprsTest.c $(APRSLIB) $(wildcard $(CORE)/aprs/*.h)
 	$(CC) $(CFLAGS) -o $@ aprsTest.c $(APRSLIB) -lm
 
+# SSTV receive: a synthetic Martin M1 VIS header and lines through the decoder
+TESTS   += sstvTest
+sstvTest: sstvTest.c $(CORE)/sstv/sstv_rx.c $(CORE)/sstv/sstv_rx.h
+	$(CC) $(CFLAGS) -o $@ sstvTest.c $(CORE)/sstv/sstv_rx.c -lm
+
 run: $(TESTS)
 	./dmrFecTest
 	./dmrDataTest > dmrDataTest.out; status=$$?; grep -E "^(FAIL|# (PASSED|FAILED))" dmrDataTest.out; exit $$status
@@ -139,6 +144,7 @@ run: $(TESTS)
 	./ipGatewayTestAir440
 	./sfrTest
 	./aprsTest
+	./sstvTest
 ifneq ($(TSHARK),)
 	@# Independent check of the frames the gateway sent: no malformed packets or bad checksums
 	@for f in ipGatewayTest.pcap ipGatewayTest16.pcap ipGatewayTest31.pcap ipGatewayTestShared.pcap ipGatewayTestAir440.pcap; do "$(TSHARK)" -r $$f -o ip.check_checksum:TRUE -o udp.check_checksum:TRUE -z expert,note -q; done > ipGatewayTest.expert

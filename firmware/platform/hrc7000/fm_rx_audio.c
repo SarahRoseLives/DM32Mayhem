@@ -11,6 +11,7 @@
 #include "dmr_glue.h"
 #include "platform.h"
 #include "FreeRTOS.h"
+#include "debuglink/dlog.h"
 
 #define RING_HALVES	4u
 #define RING		(RING_HALVES * HRC7000_FM_RX_SAMPLES)	// samples, a power of two
@@ -40,10 +41,13 @@ void hrc_fm_rx_attach(hrc7000_t *m)
 bool hrc_fm_rx_start(void)
 {
 	if (modem == NULL || ring != NULL) {
+		dlog("fmrx start fail: modem=%d ring=%d heap=%u", modem != NULL, ring != NULL,
+		     (unsigned)xPortGetFreeHeapSize());
 		return false;
 	}
 	ring = pvPortMalloc(RING * sizeof(int16_t));
 	if (ring == NULL) {
+		dlog("fmrx start fail: malloc %u heap=%u", (unsigned)(RING * sizeof(int16_t)), (unsigned)xPortGetFreeHeapSize());
 		return false;
 	}
 	head = tail = 0;

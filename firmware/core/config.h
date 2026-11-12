@@ -180,6 +180,9 @@
 #ifndef CONFIG_SCAN
 #define CONFIG_SCAN			1
 #endif
+#ifndef CONFIG_SSTV_RX
+#define CONFIG_SSTV_RX			0
+#endif
 #ifndef CONFIG_DUAL_WATCH
 #define CONFIG_DUAL_WATCH		CONFIG_SCAN
 #endif

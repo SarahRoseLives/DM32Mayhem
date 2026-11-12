@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MDC-1200 — DM32Mayhem</title>
+<meta name="description" content="MDC-1200 ANI and PTT ID bursts.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → MDC</p>
+	<h1>MDC-1200</h1>
+	<p class="lead">MDC-1200 ANI and PTT ID bursts.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Sends the MDC-1200 signalling burst that many commercial radios use for unit identification (ANI) and PTT ID.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TX → MDC</b>.</li>
+<li>Set <b>Frequency</b> and the <b>Opcode</b>.</li>
+<li>Set the <b>Unit ID</b> and <b>Source</b> bytes.</li>
+<li>Select <b>Transmit MDC</b>.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Frequency</dt><dd>The channel to key.</dd></div>
+<div><dt>Opcode / Argument</dt><dd>The MDC message type.</dd></div>
+<div><dt>Unit ID hi / lo</dt><dd>The sending unit's number.</dd></div>
+<div><dt>Source hi / lo</dt><dd>The source fields.</dd></div>
+<div><dt>Transmit MDC</dt><dd>Send the burst.</dd></div>
+		</dl>
+		
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/mdc-tx.png" alt="MDC TX with a PTT ID opcode." width="240" height="320" loading="lazy"><figcaption>MDC TX with a PTT ID opcode.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

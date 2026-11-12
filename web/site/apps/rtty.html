@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTTY — DM32Mayhem</title>
+<meta name="description" content="ITA2 RTTY transmit and a real receive decoder.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → RTTY  ·  RX → RTTY</p>
+	<h1>RTTY</h1>
+	<p class="lead">ITA2 RTTY transmit and a real receive decoder.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>A two-tone FSK RTTY app. Transmit ITA2 text at 45.45 or 50 baud with a settable mark and shift, or listen and decode RTTY from the FM discriminator.</p>
+<p>On receive the text scrolls in a log and opens full screen from the Messages row.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li><b>Transmit:</b> open TX → RTTY, set Frequency, Message, Baud, Mark, Shift and Repeat, then select Transmit RTTY.</li>
+<li><b>Receive:</b> open RX → RTTY, set Frequency, Baud, Mark, Shift and Invert; it starts listening.</li>
+<li>Select <b>Stop listening</b> to stop, or <b>Messages</b> to read the log full screen.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Frequency</dt><dd>The channel.</dd></div>
+<div><dt>Message</dt><dd>The ITA2 text to send.</dd></div>
+<div><dt>Baud</dt><dd>45.45 or 50 baud.</dd></div>
+<div><dt>Mark / Shift</dt><dd>The tone and its shift, e.g. 2125 / 170 Hz.</dd></div>
+<div><dt>Repeat</dt><dd>Times to send the message.</dd></div>
+<div><dt>Invert</dt><dd>Flip the tones on receive.</dd></div>
+<div><dt>Messages / Status</dt><dd>The log, and the sync/error counts.</dd></div>
+		</dl>
+		
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/rtty-tx.png" alt="RTTY TX with a message and 45.45 baud." width="240" height="320" loading="lazy"><figcaption>RTTY TX with a message and 45.45 baud.</figcaption></figure>
+<figure class="shot"><img src="/img/screens/rtty-rx.png" alt="RTTY RX decoding a test line." width="240" height="320" loading="lazy"><figcaption>RTTY RX decoding a test line.</figcaption></figure>
+<figure class="shot"><img src="/img/screens/rtty-messages.png" alt="The receive log, full screen." width="240" height="320" loading="lazy"><figcaption>The receive log, full screen.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

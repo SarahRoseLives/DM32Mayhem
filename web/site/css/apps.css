@@ -1,0 +1,60 @@
+/* SPDX-License-Identifier: MIT */
+/* App pages and the app cards. Values come from tokens.css; layout only. */
+
+.app-head { padding-top: var(--space-6); padding-bottom: var(--space-2); }
+.app-head h1 { margin-bottom: var(--space-1); }
+.app-head .lead { max-width: 46rem; }
+
+/* text column + screenshot column */
+.app-body {
+	display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+	gap: var(--space-6); align-items: start;
+	padding-top: var(--space-2); padding-bottom: var(--space-7);
+}
+.app-text h2 { margin-top: var(--space-5); font-size: var(--h3); }
+.app-text h2:first-child { margin-top: 0; }
+.app-text p { color: var(--muted); }
+
+.steps { margin: 0 0 var(--space-3); padding-left: 1.3rem; color: var(--muted); }
+.steps li { margin-bottom: var(--space-2); }
+.steps li::marker { color: var(--accent); font-weight: 700; }
+
+.fields { margin: 0; border-top: 1px solid var(--border); }
+.fields > div { display: grid; grid-template-columns: 10rem 1fr; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.fields dt { font-weight: 600; color: var(--accent); }
+.fields dd { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+
+.app-text .notice { margin-top: var(--space-4); }
+
+/* screenshots stay beside the text on wide screens */
+.app-shots { display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: calc(56px + var(--space-4)); }
+.app-shots .shot img { max-width: 260px; margin: 0 auto; }
+
+/* app cards (index and landing) */
+.app-card { display: block; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+.app-card:hover, .app-card:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
+.app-card .kicker { margin: 0 0 var(--space-2); font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.app-card h3 { margin-top: 0; }
+.app-card .more { margin: var(--space-2) 0 0; color: var(--link); font-size: var(--text-sm); }
+
+/* landing: app tiles with a phone screenshot */
+.app-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-4); }
+.app-tile { display: flex; flex-direction: column; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3); box-shadow: var(--shadow); text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+.app-tile:hover, .app-tile:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
+.app-tile img { display: block; width: 100%; max-width: 170px; margin: 0 auto; border: 1px solid var(--border); border-radius: 8px; background: #000; padding: 4px; }
+.app-tile h3 { margin: 0; font-size: 1.05rem; }
+.app-tile p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.app-tile .more { color: var(--link); font-weight: 600; }
+
+@media (max-width: 760px) {
+	.app-body { grid-template-columns: 1fr; }
+	.app-shots { position: static; flex-direction: row; flex-wrap: wrap; }
+	.app-shots .shot { flex: 1 1 42%; }
+	.app-shots .shot img { max-width: none; }
+	.fields > div { grid-template-columns: 1fr; gap: 0; }
+}
+
+/* the experimental note: text beside the EXP menu screenshot */
+.exp-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.5fr); gap: var(--space-5); align-items: center; }
+.exp-row .shot img { max-width: 200px; margin: 0 auto; }
+@media (max-width: 760px) { .exp-row { grid-template-columns: 1fr; } }

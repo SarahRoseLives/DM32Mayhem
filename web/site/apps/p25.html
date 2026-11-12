@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P25 control channel — DM32Mayhem</title>
+<meta name="description" content="A P25 Phase 1 control channel transmitter.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → P25</p>
+	<h1>P25 control channel</h1>
+	<p class="lead">A P25 Phase 1 control channel transmitter.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Builds and transmits a P25 Phase 1 control channel: the frame sync, BCH Network ID, TSBK, trellis coding, interleaving and outbound status symbols, rotating IDEN_UP, NET_STS, RFSS_STS and a group voice grant.</p>
+<p>The modem sends it as continuous 4FSK.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TX → P25</b>.</li>
+<li>Set <b>Frequency</b>, <b>NAC</b> and <b>WACN</b>.</li>
+<li>Set the <b>System ID</b>, <b>RFSS</b>, <b>Site</b> and <b>Talkgroup</b>, plus the <b>Voice channel</b>.</li>
+<li>Select <b>Transmit P25 CC</b>; abort from the app.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Frequency</dt><dd>The control channel.</dd></div>
+<div><dt>NAC / WACN / System ID</dt><dd>The network identity.</dd></div>
+<div><dt>RFSS / Site</dt><dd>The site numbers.</dd></div>
+<div><dt>Talkgroup / Voice channel</dt><dd>What the grant points at.</dd></div>
+<div><dt>Transmit P25 CC</dt><dd>Start or abort.</dd></div>
+		</dl>
+		<p class="notice info">This is a test transmitter for P25 receivers, not a repeater.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/p25cc-tx.png" alt="A P25 control channel ready to send." width="240" height="320" loading="lazy"><figcaption>A P25 control channel ready to send.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

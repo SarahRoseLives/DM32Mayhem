@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apps — DM32Mayhem</title>
+<meta name="description" content="Every app in DM32Mayhem: what it does and how to use it.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Apps</p>
+	<h1>What's in the radio</h1>
+	<p class="lead">DM32Mayhem puts a set of small, single-purpose apps in one tile grid. Pick one, set its rows, and it keys, tunes and unkeys the radio for you. Here is each one, what it does and how to use it.</p>
+	<div class="actions"><a class="btn btn-primary" href="/flasher/">Flash your radio →</a><a class="btn" href="/#features">What it does</a></div>
+</section>
+<section class="wrap section"><div class="section-head"><h2>Transceiver</h2></div><p class="lead">Two-way apps: the ones where the radio keys on your command.</p><div class="feature-grid">
+<a class="feature-card app-card" href="/apps/fm.html"><p class="kicker">TRX → FM</p><h3>FM transceiver</h3><p>A real FM transceiver with live PTT, repeater offset and CTCSS.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/bbs.html"><p class="kicker">TRX → BBS</p><h3>Packet BBS</h3><p>A small connected-mode packet mailbox that runs in the radio.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/kiss-tnc.html"><p class="kicker">TRX → KISS TNC</p><h3>KISS TNC</h3><p>A KISS packet TNC over USB for APRS programs on a computer or phone.</p><p class="more">How to use it →</p></a>
+</div></section>
+<section class="wrap section"><div class="section-head"><h2>Transmit</h2></div><p class="lead">One-shot transmitters. Each queues a job and the radio keys, tunes and unkeys itself.</p><div class="feature-grid">
+<a class="feature-card app-card" href="/apps/same.html"><p class="kicker">TX → SAME</p><h3>SAME</h3><p>NOAA/EAS SAME weather headers over AFSK.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/ook.html"><p class="kicker">TX → OOK</p><h3>OOK</h3><p>On-off keying for fixed-code remotes and 433.92 MHz devices.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/tv.html"><p class="kicker">TX → TV</p><h3>TV</h3><p>An analog TV test-pattern carrier on cable and UHF channels.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/mdc.html"><p class="kicker">TX → MDC</p><h3>MDC-1200</h3><p>MDC-1200 ANI and PTT ID bursts.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/p25.html"><p class="kicker">TX → P25</p><h3>P25 control channel</h3><p>A P25 Phase 1 control channel transmitter.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/aprs.html"><p class="kicker">TX → APRS</p><h3>APRS</h3><p>Status, messages and position beacons.</p><p class="more">How to use it →</p></a>
+<a class="feature-card app-card" href="/apps/rtty.html"><p class="kicker">TX → RTTY  ·  RX → RTTY</p><h3>RTTY</h3><p>ITA2 RTTY transmit and a real receive decoder.</p><p class="more">How to use it →</p></a>
+</div></section>
+<section class="wrap section"><div class="section-head"><h2>Receive</h2></div><p class="lead">Listeners that turn the FM audio into something you can read.</p><p class="lead">RTTY listens on this menu too; its page covers both transmit and receive.</p><div class="feature-grid">
+<a class="feature-card app-card" href="/apps/gps.html"><p class="kicker">RX → GPS</p><h3>GPS</h3><p>Live position, satellites, and raw NMEA out of the USB serial.</p><p class="more">How to use it →</p></a>
+</div></section>
+<section class="wrap section">
+	<div class="section-head"><h2>Experimental (EXP)</h2></div>
+	<div class="notice info"><p><strong>The EXP menu holds experimental apps</strong> — ACARS, POCSAG and SSTV today.
+	They are in the tree and they may change, or not decode yet. They are not documented here on purpose.</p></div>
+	<div class="shot-grid" style="margin-top: var(--space-4)">
+		<figure class="shot"><img src="/img/screens/exp-menu.png" alt="The EXP menu" width="240" height="320" loading="lazy"><figcaption>The EXP menu, where the experimental apps live.</figcaption></figure>
+	</div>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

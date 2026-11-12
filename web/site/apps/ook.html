@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OOK — DM32Mayhem</title>
+<meta name="description" content="On-off keying for fixed-code remotes and 433.92 MHz devices.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → OOK</p>
+	<h1>OOK</h1>
+	<p class="lead">On-off keying for fixed-code remotes and 433.92 MHz devices.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Keys the carrier on and off to send fixed-code remote signals. Use a hex code for a known device, or a de Bruijn sequence to sweep every code of a given order.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TX → OOK</b>.</li>
+<li>Set <b>Frequency</b> and <b>Bit length</b>.</li>
+<li>Pick <b>Mode</b> (De Bruijn or Hex) and <b>Data</b> (an order, or a code).</li>
+<li>Set <b>Repeat</b> and select <b>Transmit OOK</b>.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Frequency</dt><dd>The carrier, e.g. 433.920 MHz.</dd></div>
+<div><dt>Bit length</dt><dd>Pulse width per bit in microseconds.</dd></div>
+<div><dt>Mode</dt><dd>De Bruijn sweep or a hex code.</dd></div>
+<div><dt>Data</dt><dd>The sequence order or the code.</dd></div>
+<div><dt>Repeat</dt><dd>How many times to send it.</dd></div>
+		</dl>
+		<p class="notice info">Timing is limited by the PA settling time — about 1 ms per bit.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/ook-tx.png" alt="OOK TX sending a de Bruijn sequence." width="240" height="320" loading="lazy"><figcaption>OOK TX sending a de Bruijn sequence.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

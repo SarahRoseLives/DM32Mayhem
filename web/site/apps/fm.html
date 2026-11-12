@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FM transceiver — DM32Mayhem</title>
+<meta name="description" content="A real FM transceiver with live PTT, repeater offset and CTCSS.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transceiver · TRX → FM</p>
+	<h1>FM transceiver</h1>
+	<p class="lead">A real FM transceiver with live PTT, repeater offset and CTCSS.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>The one screen where the handheld behaves like a normal FM radio. Set the transmit and receive frequencies independently, pick a repeater offset, and give RX and TX their own CTCSS tone.</p>
+<p>Hold PTT to talk and release to listen. The header turns red and shows TX while keyed, and the Signal row shows the live level.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TRX → FM</b>.</li>
+<li>Set <b>TX</b> and <b>RX</b>; TX is the frequency the radio transmits on.</li>
+<li>Set <b>Offset</b> for a repeater, and <b>CTCSS RX</b> / <b>CTCSS TX</b> if the repeater uses a tone.</li>
+<li>Hold <b>PTT</b> to talk; release to listen.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>TX</dt><dd>Transmit frequency.</dd></div>
+<div><dt>RX</dt><dd>Receive frequency.</dd></div>
+<div><dt>Offset</dt><dd>Off, up/down shift, or a split frequency.</dd></div>
+<div><dt>CTCSS RX / TX</dt><dd>Per-direction tone.</dd></div>
+<div><dt>Signal</dt><dd>Live receive level in dBm.</dd></div>
+		</dl>
+		<p class="notice info">Manual PTT is only in this screen. Everywhere else the apps key the radio themselves.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/fm-trx.png" alt="The FM transceiver, idle." width="240" height="320" loading="lazy"><figcaption>The FM transceiver, idle.</figcaption></figure>
+<figure class="shot"><img src="/img/screens/fm-tx.png" alt="Keyed: the header shows TX." width="240" height="320" loading="lazy"><figcaption>Keyed: the header shows TX.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

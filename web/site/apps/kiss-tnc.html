@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KISS TNC — DM32Mayhem</title>
+<meta name="description" content="A KISS packet TNC over USB for APRS programs on a computer or phone.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transceiver · TRX → KISS TNC</p>
+	<h1>KISS TNC</h1>
+	<p class="lead">A KISS packet TNC over USB for APRS programs on a computer or phone.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Turns the radio into a KISS packet TNC on the USB serial port, so APRS software can send and receive through it. The screen shows the channel, callsign and packet counters.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TRX → KISS TNC</b>.</li>
+<li>Point your APRS program at the radio's serial port in KISS mode.</li>
+<li>Watch <b>Heard</b>, <b>KISS in</b> and <b>KISS out</b> to confirm traffic.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Status</dt><dd>The TNC state.</dd></div>
+<div><dt>Frequency / Callsign</dt><dd>The APRS channel and station address.</dd></div>
+<div><dt>Heard</dt><dd>Frames heard on the channel.</dd></div>
+<div><dt>KISS in / out</dt><dd>Frames from and to the computer.</dd></div>
+<div><dt>Serial</dt><dd>The USB serial setting: KISS 115200 8N1.</dd></div>
+		</dl>
+		<p class="notice info">Needs a build with KISS and hostlink; the callsign is the APRS callsign.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/kiss-tnc.png" alt="The KISS TNC, reporting the serial port." width="240" height="320" loading="lazy"><figcaption>The KISS TNC, reporting the serial port.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Packet BBS — DM32Mayhem</title>
+<meta name="description" content="A small connected-mode packet mailbox that runs in the radio.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transceiver · TRX → BBS</p>
+	<h1>Packet BBS</h1>
+	<p class="lead">A small connected-mode packet mailbox that runs in the radio.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>A packet BBS on the radio's 1200-baud AFSK modem. It answers a caller, shows a banner, runs the usual connected-mode commands and keeps a mailbox in the data flash.</p>
+<p>It is configured entirely on its own screen, and can start automatically at power-on.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TRX → BBS</b>.</li>
+<li>Set <b>Frequency</b>, <b>Bandwidth</b>, <b>Callsign</b> and <b>SSID</b>, plus the <b>BBS name</b> and <b>Sysop</b> shown in the banner.</li>
+<li>Set <b>TX delay</b> and the <b>CW ID</b> interval if you want an identifier.</li>
+<li>Select <b>Start BBS</b>; the header shows Running with the callsign and frequency.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Start BBS</dt><dd>Start or stop the server.</dd></div>
+<div><dt>Frequency / Bandwidth</dt><dd>The RF channel, 12.5 or 25 kHz.</dd></div>
+<div><dt>Callsign / SSID</dt><dd>The BBS's own AX.25 address.</dd></div>
+<div><dt>BBS name / Sysop</dt><dd>Shown in the banner.</dd></div>
+<div><dt>TX delay</dt><dd>KISS TXDELAY in 10 ms units.</dd></div>
+<div><dt>Start at power on</dt><dd>Run the BBS as soon as the radio boots.</dd></div>
+<div><dt>CW ID</dt><dd>Morse identifier interval: off, 5, 10, 15 or 30 minutes.</dd></div>
+		</dl>
+		<p class="notice info">The RF path is the APRS engine's; APRS beacons are off while the BBS runs.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/bbs.png" alt="The BBS screen, stopped and ready to start." width="240" height="320" loading="lazy"><figcaption>The BBS screen, stopped and ready to start.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

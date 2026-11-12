@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APRS — DM32Mayhem</title>
+<meta name="description" content="Status, messages and position beacons.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → APRS</p>
+	<h1>APRS</h1>
+	<p class="lead">Status, messages and position beacons.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>The APRS transmit app: send a status, a message to another station, or your current position, keying and unkeying the radio itself.</p>
+<p>Network builds add KISS and iGate paths to the APRS-IS.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TX → APRS</b>.</li>
+<li>Set your <b>Callsign</b> and <b>Frequency</b>.</li>
+<li>Fill in a <b>Status</b>, or the <b>Message to</b> and <b>Message</b> rows.</li>
+<li>Select <b>Send status</b>, <b>Send message</b> or <b>Send position now</b>.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Callsign</dt><dd>Your station, with an SSID if you use one.</dd></div>
+<div><dt>Frequency</dt><dd>The APRS channel.</dd></div>
+<div><dt>State / Status</dt><dd>The status text to beacon.</dd></div>
+<div><dt>Message to / Message</dt><dd>A directed APRS message.</dd></div>
+<div><dt>Send status / message / position</dt><dd>Queue the transmission.</dd></div>
+		</dl>
+		<p class="notice info">Position needs a GPS fix; the network paths need the KISS/iGate build.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/aprs-tx.png" alt="APRS TX with a callsign and channel set." width="240" height="320" loading="lazy"><figcaption>APRS TX with a callsign and channel set.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

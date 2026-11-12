@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPS — DM32Mayhem</title>
+<meta name="description" content="Live position, satellites, and raw NMEA out of the USB serial.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Receive · RX → GPS</p>
+	<h1>GPS</h1>
+	<p class="lead">Live position, satellites, and raw NMEA out of the USB serial.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Shows the GPS fix, a sky plot of the satellites, and a Maidenhead locator, and streams raw NMEA ($GPRMC and $GPGGA) out of the USB serial at 115200 8N1 while the screen is open.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>RX → GPS</b>.</li>
+<li>Press <b>Up</b> / <b>Down</b> to page between Status, Sky and Grid.</li>
+<li>Point a serial program at the radio's port to read the NMEA feed.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Status</dt><dd>Sats used/seen, latitude, longitude, altitude, speed, HDOP and UTC.</dd></div>
+<div><dt>Sky</dt><dd>A sky plot with GPS and BeiDou counts.</dd></div>
+<div><dt>Grid</dt><dd>The Maidenhead locator, e.g. EN91.</dd></div>
+<div><dt>Serial</dt><dd>NMEA 115200 8N1 while the screen is open.</dd></div>
+		</dl>
+		<p class="notice info">NMEA is emitted only while the GPS screen is open; with no fix the status is V and the fields are zero.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/gps-status.png" alt="GPS Status with a 3D fix." width="240" height="320" loading="lazy"><figcaption>GPS Status with a 3D fix.</figcaption></figure>
+<figure class="shot"><img src="/img/screens/gps-sky.png" alt="The satellite sky plot." width="240" height="320" loading="lazy"><figcaption>The satellite sky plot.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

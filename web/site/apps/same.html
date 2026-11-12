@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAME — DM32Mayhem</title>
+<meta name="description" content="NOAA/EAS SAME weather headers over AFSK.">
+<link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
+</head>
+<body>
+<header class="site-head">
+	<div class="wrap head-row">
+		<a class="brand" href="/">DM32<span>Mayhem</span></a>
+		<nav class="site-nav">
+			<a href="/#features">Features</a>
+			<a href="/apps/" aria-current="page">Apps</a>
+			<a href="/#limits">Limits</a>
+			<a href="/flasher/">Flasher</a>
+			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
+		</nav>
+	</div>
+</header>
+<main>
+<section class="wrap app-head">
+	<p class="eyebrow">Transmit · TX → SAME</p>
+	<h1>SAME</h1>
+	<p class="lead">NOAA/EAS SAME weather headers over AFSK.</p>
+	<div class="actions">
+		<a class="btn" href="/apps/">← All apps</a>
+		<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
+	</div>
+</section>
+<section class="wrap app-body">
+	<div class="app-text">
+		<h2>What it does</h2>
+		<p>Sends a SAME header — the 520.83-baud AFSK burst used by NOAA Weather Radio and the Emergency Alert System — on a weather frequency. The header is assembled from the originator, event, FIPS location and duration.</p>
+		<h2>How to use it</h2>
+		<ol class="steps">
+<li>Open <b>TX → SAME</b>.</li>
+<li>Set <b>Originator</b>, <b>Event</b>, the <b>FIPS</b> state and county, and the <b>Duration</b>.</li>
+<li>Set the <b>Frequency</b> and <b>Station ID</b>; the header preview updates at the top.</li>
+<li>Select <b>Transmit SAME</b>.</li>
+		</ol>
+		<h2>Screen fields</h2>
+		<dl class="fields">
+<div><dt>Originator</dt><dd>WXR, EAS, CIV or PEP.</dd></div>
+<div><dt>Event</dt><dd>The three-letter event code, e.g. RWT.</dd></div>
+<div><dt>FIPS state / county</dt><dd>The location code.</dd></div>
+<div><dt>Duration h / min</dt><dd>How long the alert runs.</dd></div>
+<div><dt>Frequency / Station ID</dt><dd>The channel and sender ID.</dd></div>
+<div><dt>Transmit SAME</dt><dd>Send the header.</dd></div>
+		</dl>
+		<p class="notice info">Only transmit on frequencies you are licensed for; SAME is a real alerting signal.</p>
+	</div>
+	<aside class="app-shots">
+<figure class="shot"><img src="/img/screens/same-tx.png" alt="SAME TX with a weather header ready." width="240" height="320" loading="lazy"><figcaption>SAME TX with a weather header ready.</figcaption></figure>
+	</aside>
+</section>
+</main>
+<footer class="site-foot">
+	<div class="wrap foot-row">
+		<p>DM32Mayhem is MIT-licensed, inspired by HackRF PortaPack Mayhem. <a href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>.</p>
+	</div>
+</footer>
+</body>
+</html>

@@ -12,6 +12,7 @@
 <link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/landing.css">
+<link rel="stylesheet" href="/css/apps.css">
 </head>
 <body>
 <header class="site-head">
@@ -19,7 +20,7 @@
 		<a class="brand" href="/">DM32<span>Mayhem</span></a>
 		<nav class="site-nav">
 			<a href="#features">Features</a>
-			<a href="#screens">Screens</a>
+			<a href="/apps/">Apps</a>
 			<a href="#limits">Limits</a>
 			<a href="/flasher/">Flasher</a>
 			<a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a>
@@ -60,27 +61,29 @@
 		<p class="lead">It is not a port and shares no code with PortaPack Mayhem. It is the same idea, written for this hardware under the MIT licence, one experiment at a time.</p>
 	</section>
 
-	<section id="screens" class="wrap section">
+	<section id="apps" class="wrap section">
 		<div class="section-head">
-			<h2>The radio, up close</h2>
-			<span class="small muted">Captured on a DM-32UV running this build</span>
+			<h2>Apps</h2>
+			<span class="small muted"><a href="/apps/">All apps →</a></span>
 		</div>
-		<div class="shot-grid">
-			<figure class="shot"><img src="/img/screens/home.png" alt="Home" width="240" height="320" loading="lazy"><figcaption>Home: RX, TX, TRX, About, Config, Diagnostics</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/tx-menu.png" alt="TX apps" width="240" height="320" loading="lazy"><figcaption>TX apps: SAME, OOK, MDC, P25, APRS, RTTY</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/rx-menu.png" alt="RX apps" width="240" height="320" loading="lazy"><figcaption>RX apps: RTTY receive</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/trx-menu.png" alt="TRX apps" width="240" height="320" loading="lazy"><figcaption>TRX apps: the FM transceiver</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/fm-trx.png" alt="FM transceiver" width="240" height="320" loading="lazy"><figcaption>FM transceiver: TX, RX, offset, CTCSS RX/TX</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/fm-tx.png" alt="Transmitting" width="240" height="320" loading="lazy"><figcaption>Live PTT: TX 146.100, RX 145.500</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/rtty-rx.png" alt="RTTY receive" width="240" height="320" loading="lazy"><figcaption>RTTY receive: ITA2 at 45.45/50 baud</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/rtty-messages.png" alt="RTTY messages" width="240" height="320" loading="lazy"><figcaption>RTTY Messages: full screen; OK clears</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/same-tx.png" alt="SAME TX" width="240" height="320" loading="lazy"><figcaption>SAME TX: NOAA/EAS weather headers</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/ook-tx.png" alt="OOK TX" width="240" height="320" loading="lazy"><figcaption>OOK TX: hex codes and de Bruijn sequences</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/mdc-tx.png" alt="MDC TX" width="240" height="320" loading="lazy"><figcaption>MDC-1200 TX: ANI and PTT ID</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/p25cc-tx.png" alt="P25 CC TX" width="240" height="320" loading="lazy"><figcaption>P25 CC TX: a Phase 1 control channel</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/aprs-tx.png" alt="APRS TX" width="240" height="320" loading="lazy"><figcaption>APRS TX: status, messages, position</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/rtty-tx.png" alt="RTTY TX" width="240" height="320" loading="lazy"><figcaption>RTTY TX: ITA2 with mark and shift</figcaption></figure>
-			<figure class="shot"><img src="/img/screens/boot-gate.png" alt="Boot gate" width="240" height="320" loading="lazy"><figcaption>Boot gate: a fresh code at every power-on</figcaption></figure>
+		<p class="lead">Each app is a small screen of its own: set the rows, press the action, and the radio keys, tunes and unkeys itself. Pick one for what it does, how to use it, and its screenshots.</p>
+		<div class="app-tiles">
+			<a class="app-tile" href="/apps/fm.html"><img src="/img/screens/fm-trx.png" alt="FM transceiver" width="240" height="320" loading="lazy"><h3>FM transceiver</h3><p>Live PTT, offset and CTCSS on one screen.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/aprs.html"><img src="/img/screens/aprs-tx.png" alt="APRS" width="240" height="320" loading="lazy"><h3>APRS</h3><p>Status, messages and position beacons.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/rtty.html"><img src="/img/screens/rtty-rx.png" alt="RTTY" width="240" height="320" loading="lazy"><h3>RTTY</h3><p>Transmit ITA2 and decode it from FM audio.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/p25.html"><img src="/img/screens/p25cc-tx.png" alt="P25 control channel" width="240" height="320" loading="lazy"><h3>P25 control channel</h3><p>A Phase 1 control channel for testing.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/same.html"><img src="/img/screens/same-tx.png" alt="SAME" width="240" height="320" loading="lazy"><h3>SAME</h3><p>NOAA/EAS weather headers.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/gps.html"><img src="/img/screens/gps-status.png" alt="GPS" width="240" height="320" loading="lazy"><h3>GPS</h3><p>Fix, sky plot and NMEA over the serial port.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/bbs.html"><img src="/img/screens/bbs.png" alt="Packet BBS" width="240" height="320" loading="lazy"><h3>Packet BBS</h3><p>A mailbox that runs in the radio.</p><span class="more">How to use it →</span></a>
+			<a class="app-tile" href="/apps/tv.html"><img src="/img/screens/tv-tx.png" alt="TV" width="240" height="320" loading="lazy"><h3>TV</h3><p>An analog TV test-pattern carrier.</p><span class="more">How to use it →</span></a>
+		</div>
+	</section>
+
+	<section class="wrap section">
+		<div class="section-head"><h2>Experimental (EXP)</h2></div>
+		<div class="exp-row">
+			<p class="lead">The EXP menu holds experimental apps — ACARS, POCSAG and SSTV today. They are in the tree and they may change, or not decode yet, so they are not documented here on purpose.</p>
+			<figure class="shot"><img src="/img/screens/exp-menu.png" alt="The EXP menu" width="240" height="320" loading="lazy"><figcaption>The EXP menu, where the experiments live.</figcaption></figure>
 		</div>
 	</section>
 
@@ -90,11 +93,11 @@
 		<div class="feature-grid">
 			<article class="feature-card">
 				<h3>An FM transceiver, not just a receiver</h3>
-				<p>Set the TX and RX frequencies directly, pick a repeater offset, and give RX and TX their own CTCSS. Hold PTT to talk; release to listen. It is the one screen where PTT keys the radio.</p>
+				<p>Set the TX and RX frequencies directly, pick a repeater offset, and give RX and TX their own CTCSS. Hold PTT to talk; release to listen. It is the one screen where PTT keys the radio. <a href="/apps/fm.html">How to use it →</a></p>
 			</article>
 			<article class="feature-card">
 				<h3>Six transmit apps</h3>
-				<p>SAME weather headers, OOK and de Bruijn remote codes, MDC-1200 ANI/PTT ID, a P25 Phase 1 control channel, APRS status/messages/position, and ITA2 RTTY. Each queues a job and the radio keys, tunes and unkeys itself.</p>
+				<p>SAME weather headers, OOK and de Bruijn remote codes, TV test patterns, MDC-1200 ANI/PTT ID, a P25 Phase 1 control channel, APRS status/messages/position, and ITA2 RTTY. Each queues a job and the radio keys, tunes and unkeys itself. <a href="/apps/">See every app →</a></p>
 			</article>
 			<article class="feature-card">
 				<h3>A real RTTY receiver</h3>

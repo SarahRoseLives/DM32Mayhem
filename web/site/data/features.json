@@ -1068,6 +1068,17 @@
       "notes": "Needs SCAN. Without it, only the debug link's dual watch (two channels of one zone). Measured 2026-10-21 on the dual watch branch, default builds"
     },
     {
+      "name": "SSTV_RX",
+      "help": "SSTV receive (docs/spec/sstv.md): pictures decoded from the FM receive audio, drawn on the screen",
+      "default": "n",
+      "needs": {
+        "all": [
+          "FM"
+        ],
+        "any": []
+      }
+    },
+    {
       "name": "BEEP",
       "help": "beeps and alert tones as PCM through the speaker (needs the board's PCM audio, which some radios have only with DMR)",
       "default": "y",

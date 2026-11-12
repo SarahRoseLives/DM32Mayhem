@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DM32Mayhem — open firmware for the Baofeng DM-32UV</title>
-<meta name="description" content="DM32Mayhem is free, open-source firmware for the Baofeng DM-32UV: an FM transceiver with live PTT, SAME/OOK/MDC/P25/APRS/RTTY transmit apps, a RTTY receiver, and a browser flasher.">
+<title>DM32Mayhem — Mayhem firmware for the Baofeng DM-32UV</title>
+<meta name="description" content="DM32Mayhem is free, open-source firmware for the Baofeng DM-32UV, inspired by HackRF PortaPack Mayhem: an FM transceiver, a set of transmit apps, RTTY and APRS receive, and room to experiment. Flash it from your browser.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="DM32Mayhem — open firmware for the Baofeng DM-32UV">
-<meta property="og:description" content="FM transceiver with live PTT, six transmit apps, a RTTY receiver, and a browser flasher.">
+<meta property="og:title" content="DM32Mayhem — Mayhem firmware for the Baofeng DM-32UV">
+<meta property="og:description" content="Mayhem for the Baofeng DM-32UV: an FM transceiver, transmit apps, receivers, and a browser flasher — inspired by HackRF PortaPack Mayhem.">
 <meta property="og:image" content="/img/screens/home.png">
 <link rel="icon" href="/img/dm32.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/tokens.css">
@@ -31,17 +31,19 @@
 	<section class="hero">
 		<div class="wrap hero-grid">
 			<div class="hero-text">
-				<p class="eyebrow">Open firmware · Baofeng DM-32UV</p>
+				<p class="eyebrow">Open firmware · Baofeng DM-32UV · in the spirit of Mayhem</p>
 				<h1>DM32Mayhem</h1>
-				<p class="lead">A free, open-source firmware for the Baofeng DM-32UV: an FM transceiver with live PTT, a suite of transmit apps, a RTTY receiver, and a boot gate. Flash it from your browser.</p>
+				<p class="lead">Mayhem, for a handheld. DM32Mayhem is free, open-source firmware for the Baofeng DM-32UV, inspired by the HackRF PortaPack Mayhem project: the same spirit of doing things with a radio you wouldn't expect, then adding more cool features as we go.</p>
+				<p class="lead">It is an FM transceiver with live PTT, a set of transmit tools — APRS, P25 control channel, MDC-1200, SAME, OOK and RTTY — and receivers for RTTY and APRS. Flash it from your browser, keep your backup, and join the experiment.</p>
 				<div class="actions">
 					<a class="btn btn-primary" href="/flasher/">Flash your radio →</a>
 					<a class="btn" href="https://github.com/SarahRoseLives/DM32Mayhem">Source on GitHub</a>
 				</div>
 				<p class="small muted">Release {{version}} · git {{git}} · MIT licensed</p>
 				<dl class="feature-rows">
+					<div><dt>Spirit</dt><dd>Inspired by HackRF PortaPack Mayhem: curiosity first, features added over time.</dd></div>
 					<div><dt>Voice</dt><dd>An FM transceiver with live PTT, repeater offset and CTCSS.</dd></div>
-					<div><dt>Data</dt><dd>APRS, P25 control channel, MDC-1200, SAME, OOK and RTTY.</dd></div>
+					<div><dt>Transmit</dt><dd>APRS, P25 control channel, MDC-1200, SAME, OOK and RTTY.</dd></div>
 					<div><dt>Receive</dt><dd>RTTY and APRS; DMR with the radio's own codec.</dd></div>
 					<div><dt>Open</dt><dd>MIT source, a browser flasher, no vendor lock-in.</dd></div>
 				</dl>
@@ -50,6 +52,12 @@
 				<img src="/img/dm32.svg" alt="Baofeng DM-32UV running DM32Mayhem">
 			</figure>
 		</div>
+	</section>
+
+	<section class="wrap section">
+		<div class="section-head"><h2>In the spirit of Mayhem</h2></div>
+		<p class="lead">HackRF's PortaPack Mayhem showed what a radio becomes when you treat it as a playground: spectrum tools, transmitters and odd little experiments, all in one place. DM32Mayhem brings that attitude to a cheap Baofeng handheld — do things with the radio you wouldn't expect, and keep adding the features that seem fun.</p>
+		<p class="lead">It is not a port and shares no code with PortaPack Mayhem. It is the same idea, written for this hardware under the MIT licence, one experiment at a time.</p>
 	</section>
 
 	<section id="screens" class="wrap section">
@@ -78,6 +86,7 @@
 
 	<section id="features" class="wrap section">
 		<div class="section-head"><h2>What it does</h2></div>
+		<p class="lead">Most of this started as “wouldn't it be cool if the radio could…”. The apps share one tile grid and each one keys, tunes and unkeys the radio itself, so a single handheld can send a weather header, a P25 control channel, a page or an APRS beacon.</p>
 		<div class="feature-grid">
 			<article class="feature-card">
 				<h3>An FM transceiver, not just a receiver</h3>

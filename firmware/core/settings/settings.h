@@ -79,6 +79,7 @@ typedef struct {
 	uint32_t tv_hz;			// the TV test pattern (the OOK) frequency
 	uint8_t tv_pattern, tv_repeat;
 	uint32_t tv_bit_us;		// the OOK bit period
+	uint8_t tv_channel;		// 1 + the TV channel index (0 = the default)
 } settings_apps_t;
 
 typedef struct {

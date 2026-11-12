@@ -7349,11 +7349,24 @@ static const ui_scr_def_t ook_screen = {
 // line rate; the PA bias wants longer pulses, so the user can try 50..1000 us. The field is 262 lines + the vertical
 // sync. The frequency defaults to cable channel 58 (427.250 MHz).
 #define TV_LINES	262
-enum { TV_ROW_FREQ, TV_ROW_PATTERN, TV_ROW_BIT, TV_ROW_TX, TV_ROW_STATUS, TV_ROW_COUNT };
+enum { TV_ROW_CHANNEL, TV_ROW_FREQ, TV_ROW_PATTERN, TV_ROW_BIT, TV_ROW_TX, TV_ROW_STATUS, TV_ROW_COUNT };
+// US TV channels that fit the radio's 400..480 MHz TX: cable 54..66 (visual carrier 403.25 + 6 kHz steps)
+// and UHF 14/15. The visual carrier is the AM video carrier the test pattern keys.
+static const uint32_t tv_chan_hz[] = {
+	403250000u, 409250000u, 415250000u, 421250000u, 427250000u, 433250000u, 439250000u, 445250000u,
+	451250000u, 457250000u, 463250000u, 469250000u, 475250000u, 471250000u, 477250000u,
+};
+static const char *const tv_chan_names[] = {
+	"Cable 54", "Cable 55", "Cable 56", "Cable 57", "Cable 58", "Cable 59", "Cable 60", "Cable 61",
+	"Cable 62", "Cable 63", "Cable 64", "Cable 65", "Cable 66", "UHF 14", "UHF 15",
+};
+#define TV_CHAN_COUNT	(sizeof tv_chan_hz / sizeof tv_chan_hz[0])
+#define TV_CHAN_DEFAULT	4u		// cable 58 = 427.250 MHz
+static uint8_t tv_chan_idx = TV_CHAN_DEFAULT;
 static const char *const tv_pat_names[] = { "Bars", "Stripes", "Checker", "Split", "Field" };
 #define TV_PAT_COUNT	(sizeof tv_pat_names / sizeof tv_pat_names[0])
 
-static uint32_t tv_hz = 427250000u;
+static uint32_t tv_hz = 427250000u;	// derived from tv_chan_idx
 static uint32_t tv_bit_us = 63u;
 static uint8_t tv_pattern;
 static bool tv_sending;
@@ -7417,18 +7430,6 @@ static void tv_stop(void)
 	ui_dirty();
 }
 
-static void tv_freq_begin(void)
-{
-	uint32_t v = tv_hz / 10u;
-	tv_len = UI_ENTRY_MAX;
-	for (int i = UI_ENTRY_MAX - 1; i >= 0; i--) {
-		tv_digits[i] = (char)('0' + v % 10u);
-		v /= 10u;
-	}
-	tv_digits[UI_ENTRY_MAX] = '\0';
-	tv_edit = TV_ROW_FREQ;
-}
-
 static void tv_bit_begin(void)
 {
 	char tmp[8];
@@ -7448,12 +7449,7 @@ static void tv_bit_begin(void)
 
 static void tv_commit(void)
 {
-	if (tv_edit == TV_ROW_FREQ) {
-		uint32_t hz = ui_freq_entry_hz(tv_digits, tv_len);
-		if (hz != 0) {
-			tv_hz = hz;
-		}
-	} else if (tv_edit == TV_ROW_BIT) {
+	if (tv_edit == TV_ROW_BIT) {
 		uint32_t v = 0;
 		for (uint8_t i = 0; i < tv_len; i++) {
 			v = v * 10u + (uint32_t)(tv_digits[i] - '0');
@@ -7472,14 +7468,14 @@ static void tv_item(uint16_t i, ui_item_t *it)
 	sb_init(&b, it->value, sizeof it->value);
 	bool edit = tv_edit == (int8_t)i;
 	switch (i) {
+	case TV_ROW_CHANNEL:
+		str_copy(it->label, sizeof it->label, TR("Channel"));
+		sb_str(&b, tv_chan_names[tv_chan_idx]);
+		break;
 	case TV_ROW_FREQ:
 		str_copy(it->label, sizeof it->label, TR("Frequency"));
-		if (edit) {
-			it->flags |= UI_ITEM_EDIT;
-			sb_str(&b, tv_len != 0 ? tv_digits : TR("type digits"));
-		} else {
-			sb_freq(&b, tv_hz);
-		}
+		sb_freq(&b, tv_hz);
+		it->flags |= UI_ITEM_INFO;	// derived from the channel
 		break;
 	case TV_ROW_PATTERN:
 		str_copy(it->label, sizeof it->label, TR("Pattern"));
@@ -7512,8 +7508,11 @@ static void tv_select(uint16_t i, bool hold)
 {
 	(void)hold;
 	switch (i) {
+	case TV_ROW_CHANNEL:
+		tv_chan_idx = (uint8_t)((tv_chan_idx + 1u) % TV_CHAN_COUNT);
+		tv_hz = tv_chan_hz[tv_chan_idx];
+		break;
 	case TV_ROW_FREQ:
-		tv_freq_begin();
 		break;
 	case TV_ROW_PATTERN:
 		tv_pattern = (uint8_t)((tv_pattern + 1u) % TV_PAT_COUNT);
@@ -10377,7 +10376,8 @@ static void apps_load(uint8_t scr)
 		break;
 	case SCR_TV_TX:
 		if (a->set & (1u << SETTINGS_APP_TV)) {
-			tv_hz = a->tv_hz;
+			tv_chan_idx = (a->tv_channel >= 1u && a->tv_channel <= TV_CHAN_COUNT) ? (uint8_t)(a->tv_channel - 1u) : TV_CHAN_DEFAULT;
+			tv_hz = tv_chan_hz[tv_chan_idx];
 			tv_pattern = a->tv_pattern < TV_PAT_COUNT ? a->tv_pattern : 0;
 			tv_bit_us = a->tv_bit_us < 50u ? 50u : a->tv_bit_us > 1000u ? 1000u : a->tv_bit_us;
 		}
@@ -10510,6 +10510,7 @@ static void apps_save(uint8_t scr)
 		a->set |= (uint16_t)(1u << SETTINGS_APP_OOK);
 		break;
 	case SCR_TV_TX:
+		a->tv_channel = (uint8_t)(tv_chan_idx + 1u);
 		a->tv_hz = tv_hz;
 		a->tv_pattern = tv_pattern;
 		a->tv_bit_us = tv_bit_us;

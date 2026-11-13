@@ -10374,7 +10374,7 @@ static void apps_load(uint8_t scr)
 			same_cfg.dur_h = a->same_dur_h;
 			same_cfg.dur_m = a->same_dur_m;
 			same_cfg.narrow = a->same_narrow != 0;
-			same_cfg.level = a->same_level > 100 ? 100 : a->same_level;
+			same_cfg.level = a->same_level > 0 && a->same_level <= 100 ? a->same_level : SAME_LEVEL_DEFAULT;
 			str_copy(same_cfg.station, sizeof same_cfg.station, a->same_station);
 			same_loaded = true;
 		}

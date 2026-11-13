@@ -26,7 +26,6 @@ const char *const same_event_codes[SAME_EVENT_COUNT] = {
 #define SAME_BAUD	521u	// 520.83, rounded
 #define SAME_MARK_HZ	2083u
 #define SAME_SPACE_HZ	1563u
-#define SAME_LEVEL_DEFAULT	80	// about 5 kHz deviation at 25 kHz (50 is ~3 kHz)
 
 static char *put_str(char *p, const char *s)
 {
@@ -141,7 +140,10 @@ bool same_tx_send(const same_cfg_t *c)
 		memcpy(bits + n, msg, mlen);
 		n = (uint16_t)(n + mlen);
 	}
-	return aprs_queue_afsk_burst(c->hz, c->narrow, c->level, bits, (uint16_t)((size_t)n * 8u), SAME_BAUD,
+	// A stored level of 0 (an older settings record from before the field was persisted) would key the carrier at
+	// zero amplitude and unmodulated. Treat it as unset and use the default.
+	uint8_t level = c->level != 0 ? c->level : SAME_LEVEL_DEFAULT;
+	return aprs_queue_afsk_burst(c->hz, c->narrow, level, bits, (uint16_t)((size_t)n * 8u), SAME_BAUD,
 				     SAME_MARK_HZ, SAME_SPACE_HZ, 0);
 }
 

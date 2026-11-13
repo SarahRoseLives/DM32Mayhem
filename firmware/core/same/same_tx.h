@@ -13,6 +13,7 @@
 
 #define SAME_ORG_COUNT		4
 #define SAME_EVENT_COUNT	26
+#define SAME_LEVEL_DEFAULT	80	// AFSK audio level: 50 is about 3 kHz deviation, 80 about 5 kHz
 
 typedef struct {
 	uint8_t org;		// index into same_org_codes

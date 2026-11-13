@@ -1,9 +1,9 @@
 {
   "format": "rfoundry-site/1",
-  "git": "62989b48",
-  "version": "62989b48",
-  "built": "2026-11-12T07:09:10+00:00",
-  "release": "v26.17",
+  "git": "9a1a59f5",
+  "version": "9a1a59f5",
+  "built": "2026-11-13T19:36:21+00:00",
+  "release": "v26.18",
   "beta": null,
   "branch": "main",
   "repo": "https://github.com/SarahRoseLives/DM32Mayhem",

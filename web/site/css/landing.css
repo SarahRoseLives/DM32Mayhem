@@ -31,6 +31,8 @@ p { margin: 0 0 var(--space-3); }
 .site-nav { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-left: auto; }
 .site-nav a { color: var(--muted); text-decoration: none; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-weight: 500; font-size: var(--text-sm); }
 .site-nav a:hover { background: var(--surface-2); color: var(--text); }
+.site-nav a.nav-donate { background: var(--accent); color: var(--accent-text); }
+.site-nav a.nav-donate:hover { background: var(--accent); color: var(--accent-text); filter: brightness(1.08); }
 
 /* hero */
 .hero { background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%); border-bottom: 1px solid var(--border); }

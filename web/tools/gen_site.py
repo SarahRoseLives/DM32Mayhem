@@ -168,7 +168,7 @@ def index(cat):
 </script>
 <header class="dm-head">
   <a class="dm-brand" href="/">DM32<span>Mayhem</span></a>
-  <nav><a href="/">Home</a><a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a></nav>
+  <nav><a href="/">Home</a><a href="https://github.com/SarahRoseLives/DM32Mayhem">Source</a><a href="https://sarahsforge.dev/products/donation">Donate</a></nav>
 </header>
 <main class="dm-main">
   <section class="dm-intro">

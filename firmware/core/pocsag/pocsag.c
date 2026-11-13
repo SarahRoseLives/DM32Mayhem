@@ -131,13 +131,20 @@ bool pocsag_build(const pocsag_tx_cfg_t *cfg, uint8_t *out, uint16_t cap_bits, u
 	uint8_t nb = 0;
 
 	if (cfg->alpha) {
-		// OpenPOCSAG framing: 7-bit characters LSB first, zero-padded to a 20-bit codeword. No ETX/0x04 padding.
+		// 7-bit characters LSB first, then an EOT (0x04) that ends the page, zero-padded to a 20-bit codeword.
+		// Without the EOT the filler is read as NUL characters, which some pagers show or reject; every encoder a
+		// pager meets ends the text with EOT (or ETX), so the pad bits after it are never displayed.
 		static uint8_t bits[20u * sizeof words];
 		uint16_t nbit = 0;
-		for (const char *p = cfg->text; *p != '\0' && nbit + 7u <= sizeof bits; p++) {
+		for (const char *p = cfg->text; *p != '\0' && nbit + 7u + 7u <= sizeof bits; p++) {
 			uint8_t c = (uint8_t)*p & 0x7Fu;
 			for (int k = 0; k < 7; k++) {
 				bits[nbit++] = (c >> k) & 1u;
+			}
+		}
+		if (nbit + 7u <= sizeof bits) {
+			for (int k = 0; k < 7; k++) {
+				bits[nbit++] = (0x04u >> k) & 1u;	// EOT
 			}
 		}
 		while (nbit % 20u != 0 && nbit < sizeof bits) {

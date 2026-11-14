@@ -6849,7 +6849,7 @@ static const ui_scr_def_t bbs_msg_screen = {
 // header three times through the AFSK modem and tunes back (the APRS transmit service in the radio task).
 
 enum { SAME_ROW_ORG, SAME_ROW_EVT, SAME_ROW_STATE, SAME_ROW_COUNTY, SAME_ROW_DUR_H, SAME_ROW_DUR_M,
-       SAME_ROW_FREQ, SAME_ROW_STATION, SAME_ROW_TX, SAME_ROW_COUNT };
+       SAME_ROW_FREQ, SAME_ROW_STATION, SAME_ROW_LEVEL, SAME_ROW_TX, SAME_ROW_COUNT };
 
 static same_cfg_t same_cfg;
 static bool same_loaded;
@@ -6948,6 +6948,10 @@ static void same_item(uint16_t i, ui_item_t *it)
 		str_copy(it->label, sizeof it->label, "Station ID");
 		sb_str(&b, same_cfg.station);
 		break;
+	case SAME_ROW_LEVEL:
+		str_copy(it->label, sizeof it->label, "Level");
+		sb_u32(&b, same_cfg.level, 1);
+		break;
 	case SAME_ROW_TX:
 		str_copy(it->label, sizeof it->label, "Transmit SAME");
 		sb_str(&b, same_sending ? (ui_view()->state == RS_TX ? "Sending" : "Done") : "Ready");
@@ -7020,6 +7024,9 @@ static void same_select(uint16_t i, bool hold)
 	case SAME_ROW_STATION:
 		ui_text_open(same_cfg.station, 8);
 		break;
+	case SAME_ROW_LEVEL:
+		same_cfg.level = (uint8_t)(same_cfg.level >= 100u ? 10u : same_cfg.level + 10u);
+		break;
 	case SAME_ROW_TX:
 		if (same_tx_send(&same_cfg)) {
 			same_sending = true;
@@ -7089,8 +7096,8 @@ static const char *same_body(void)
 	sb_chr(&b, '-');
 	sb_str(&b, same_event_codes[same_cfg.event < SAME_EVENT_COUNT ? same_cfg.event : 0]);
 	sb_chr(&b, '-');
-	sb_u32(&b, same_cfg.fips_state, 2);
 	sb_chr(&b, '0');
+	sb_u32(&b, same_cfg.fips_state, 2);
 	sb_u32(&b, same_cfg.fips_county, 3);
 	sb_chr(&b, '+');
 	sb_u32(&b, same_cfg.dur_h, 2);

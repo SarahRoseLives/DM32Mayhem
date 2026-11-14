@@ -108,8 +108,8 @@ bool same_tx_send(const same_cfg_t *c)
 	*p++ = '-';
 	p = put_str(p, same_event_codes[c->event < SAME_EVENT_COUNT ? c->event : 0]);
 	*p++ = '-';
-	p = put2(p, c->fips_state % 100u);	// PSSCCC: part 0, state, county
-	*p++ = '0';
+	*p++ = '0';				// PSSCCC: partition 0, then state and county
+	p = put2(p, c->fips_state % 100u);
 	p = put3(p, c->fips_county % 1000u);
 	*p++ = '+';
 	p = put2(p, c->dur_h % 100u);

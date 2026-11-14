@@ -43,15 +43,17 @@
 <li>Open <b>TX → SAME</b>.</li>
 <li>Set <b>Originator</b>, <b>Event</b>, the <b>FIPS</b> state and county, and the <b>Duration</b>.</li>
 <li>Set the <b>Frequency</b> and <b>Station ID</b>; the header preview updates at the top.</li>
+<li>Set <b>Level</b> if you need more or less deviation (50 is about 3 kHz, 80 about 5 kHz).</li>
 <li>Select <b>Transmit SAME</b>.</li>
 		</ol>
 		<h2>Screen fields</h2>
 		<dl class="fields">
 <div><dt>Originator</dt><dd>WXR, EAS, CIV or PEP.</dd></div>
 <div><dt>Event</dt><dd>The three-letter event code, e.g. RWT.</dd></div>
-<div><dt>FIPS state / county</dt><dd>The location code.</dd></div>
+<div><dt>FIPS state / county</dt><dd>The location code, sent as PSSCCC.</dd></div>
 <div><dt>Duration h / min</dt><dd>How long the alert runs.</dd></div>
 <div><dt>Frequency / Station ID</dt><dd>The channel and sender ID.</dd></div>
+<div><dt>Level</dt><dd>AFSK audio level (deviation): 50 is about 3 kHz, 80 about 5 kHz.</dd></div>
 <div><dt>Transmit SAME</dt><dd>Send the header.</dd></div>
 		</dl>
 		<p class="notice info">Only transmit on frequencies you are licensed for; SAME is a real alerting signal.</p>

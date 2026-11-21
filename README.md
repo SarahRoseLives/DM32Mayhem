@@ -3,8 +3,8 @@
 # DM32Mayhem
 
 A **HackRF-portapak-inspired firmware for the Baofeng DM-32UV**, built on the RadioFoundry tree. The radio boots into a
-two-by-three app grid, and each app is a small transmitter with its own panel. Transmission is app-driven: there is no
-manual PTT in this build.
+two-by-three app grid. The FM transceiver in TRX supports live PTT in builds that enable it. The packet and signal
+apps in TX manage transmission from their own panels.
 
 **Web flasher:** [dm32mayhem.com](https://dm32mayhem.com/) — back up, install and restore the firmware over the
 programming cable in Chrome or Edge.
@@ -148,7 +148,7 @@ The full RadioFoundry build (`make BOARD=dm32`) is untouched and still builds.
 ## Limits
 
 - FM and packet only in this build: no AMBE codec, so no DMR voice.
-- No manual PTT; apps key the radio themselves.
+- The default `tools/build-bbs.sh` build sets `CONFIG_NO_PTT=y`, so manual PTT in the FM transceiver is disabled.
 - The boot gate is an acknowledgement, not encryption or access control: the code is shown on the panel.
 - OOK is limited by the PA settling time, about 1 ms per bit.
 - RX has the RTTY receiver; TRX has the FM transceiver.

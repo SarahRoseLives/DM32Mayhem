@@ -8,12 +8,19 @@
 #
 #   tools/build-bbs.sh            build build/bbs/rfoundry_dm32.bin
 #   tools/build-bbs.sh -j1        pass make options through
+#   tools/build-bbs.sh --docker   build with the C-SKY Docker image (firmware/tools/docker/csky-toolchain/run.sh)
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here/../firmware"
 export PATH="$HOME/toolchains/csky-elf/bin:$PATH"
 
-exec make BOARD=dm32 BUILD=build/bbs -j"$(nproc)" \
+runner=""
+if [ "${1:-}" = "--docker" ]; then
+	shift
+	runner="tools/docker/csky-toolchain/run.sh"
+fi
+
+exec $runner make BOARD=dm32 BUILD=build/bbs -j"$(nproc)" \
 	CONFIG_BBS=y CONFIG_SAME_TX=y CONFIG_OOK_TX=y CONFIG_MDC_TX=y CONFIG_P25CC_TX=y CONFIG_APRS_TX=y CONFIG_RTTY_TX=y CONFIG_BOOT_GATE=y CONFIG_NO_PTT=y \
 	CONFIG_DMR=y CONFIG_DMR_DATA_CORE=n CONFIG_DMR_IP_GATEWAY=n CONFIG_DMR_PRIVACY=n \
 	CONFIG_DMR_UDP_COMPRESS=n CONFIG_DMR_CONFIRMED=n CONFIG_CRASH_REPORT=n \
